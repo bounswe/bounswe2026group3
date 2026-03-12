@@ -14,7 +14,7 @@ function onButton2Click() {
 }
 
 function onButton3Click() {
-  console.log("Button 3 clicked -- implement me!");
+  window.location.href = "ekin.html";
 }
 
 function onButton4Click() {
@@ -31,4 +31,5 @@ function onButton6Click() {
 
 function onButton7Click() {
   console.log("Button 7 clicked -- implement me!");
+  window.location.href = "ali-posts.html";
 }
