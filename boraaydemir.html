@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bora Aydemir - Athlete Profile</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 500px;
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      text-align: center;
+    }
+    .card h1 { 
+        font-size: 1.5rem; 
+        color: #166534; 
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+    .api-info { 
+        color: #64748b; 
+        font-size: 0.9rem; 
+        margin-bottom: 30px; 
+        line-height: 1.5;
+        background: #f8fafc;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    #loading-message { color: #64748b; font-style: italic; }
+    
+    .profile-container {
+        display: none; 
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .player-img-container {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin-bottom: 20px;
+        border: 4px solid #22c55e;
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+    
+    .player-img-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .player-name {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 5px;
+    }
+
+    .player-team-status {
+        color: #16a34a;
+        font-weight: 500;
+        margin-bottom: 25px;
+    }
+
+    .details-list {
+        list-style: none;
+        width: 100%;
+        text-align: left;
+        background: #f8fafc;
+        padding: 20px;
+        border-radius: 12px;
+    }
+
+    .details-list li {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #e2e8f0;
+        color: #334155;
+    }
+    .details-list li:last-child { border-bottom: none; }
+    .details-list strong { color: #475569; font-weight: 600; }
+
+    .back-btn {
+      margin-top: 30px;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 30px;
+      background-color: #16a34a;
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 200ms;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    .back-btn:hover { 
+        background-color: #15803d; 
+        transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Bora's Football Player Profile</h1>
+    
+    <p class="api-info">
+      <strong>Data Source:</strong> Fetched directly from the public <i>TheSportsDB API</i>.
+    </p>
+
+    <p id="loading-message">Loading player profile...</p>
+
+    <div class="profile-container" id="profile-content">
+        <div class="player-img-container">
+            <img id="player-image" alt="Player Image" src="">
+        </div>
+        
+        <h2 class="player-name" id="player-full-name"></h2>
+        <p class="player-team-status" id="player-team-display"></p>
+
+        <ul class="details-list">
+            <li id="row-nationality">
+                <strong>Nationality:</strong>
+                <span id="player-nationality"></span>
+            </li>
+            <li id="row-position">
+                <strong>Position:</strong>
+                <span id="player-position"></span>
+            </li>
+            <li id="row-born">
+                <strong>Born:</strong>
+                <span id="player-born"></span>
+            </li>
+            <li id="row-height">
+                <strong>Height:</strong>
+                <span id="player-height"></span>
+            </li>
+            <li id="row-weight">
+                <strong>Weight:</strong>
+                <span id="player-weight"></span>
+            </li>
+        </ul>
+    </div>
+
+    <a href="index.html" class="back-btn">← Back to Home</a>
+  </div>
+
+  <script>
+    const API_URL = 'https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=Lionel%20Messi';
+
+    // Veri yoksa o satırı komple gizleyen yardımcı fonksiyon
+    function setDisplayData(rowId, spanId, dataValue) {
+        if (dataValue && dataValue.trim() !== "") {
+            document.getElementById(spanId).textContent = dataValue;
+        } else {
+            // Veri boşsa satırı (<li>) sayfadan sakla
+            document.getElementById(rowId).style.display = 'none';
+        }
+    }
+
+    fetch(API_URL)
+      .then(response => response.json())
+      .then(data => {
+        const player = data.player[0];
+
+        document.getElementById('loading-message').style.display = 'none';
+        document.getElementById('profile-content').style.display = 'flex';
+
+        if (player.strThumb) {
+            document.getElementById('player-image').src = player.strThumb;
+        } else {
+             document.querySelector('.player-img-container').style.backgroundColor = '#ddd';
+        }
+        
+        document.getElementById('player-full-name').textContent = player.strPlayer;
+        document.getElementById('player-team-display').textContent = `${player.strTeam} | ${player.strSport}`;
+        
+        // Yardımcı fonksiyonu kullanarak listeyi dolduruyoruz
+        setDisplayData('row-nationality', 'player-nationality', player.strNationality);
+        setDisplayData('row-position', 'player-position', player.strPosition);
+        setDisplayData('row-born', 'player-born', player.dateBorn);
+        setDisplayData('row-height', 'player-height', player.strHeight);
+        setDisplayData('row-weight', 'player-weight', player.strWeight);
+      })
+      .catch(error => {
+        document.getElementById('loading-message').textContent = "Error loading player data. Please try again.";
+        document.getElementById('loading-message').style.color = "red";
+        console.error("API Error:", error);
+      });
+  </script>
+</body>
+</html>
