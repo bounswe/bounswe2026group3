@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Random Joke</title>
+  <style>
+    body { font-family: sans-serif; display: flex; justify-content: center; padding: 40px; background: #f8fafc; }
+    .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); max-width: 480px; width: 100%; }
+    h1 { color: #1e293b; margin-bottom: 8px; }
+    p.desc { color: #64748b; margin-bottom: 24px; }
+    .joke { background: #f1f5f9; border-radius: 8px; padding: 16px; color: #1e293b; font-size: 1.1rem; }
+    .punchline { margin-top: 12px; font-weight: bold; color: #4f46e5; }
+    a { display: inline-block; margin-top: 24px; color: #4f46e5; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>😂 Random Joke</h1>
+    <p class="desc">Fetched from JokeAPI. Returns a random programming joke.</p>
+    <div class="joke" id="output">Loading...</div>
+    <a href="index.html">← Back</a>
+  </div>
+  <script>
+    fetch("https://v2.jokeapi.dev/joke/Programming?type=twopart")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("output").innerHTML = `
+          <p>${data.setup}</p>
+          <p class="punchline">${data.delivery}</p>
+        `;
+      });
+  </script>
+</body>
+</html>
