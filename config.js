@@ -14,5 +14,5 @@ const BUTTON_LABELS = [
   "Button 4",
   "Button 5",
   "Omer's Posts",
-  "Button 7",
+  "Arif Evren",
 ];
