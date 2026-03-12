@@ -65,6 +65,5 @@ function onButton6Click() {
 }
 
 function onButton7Click() {
-  console.log("Button 7 clicked -- implement me!");
-  window.location.href = "ali-posts.html";
+  window.location.href = "arif-evren.html";
 }
