@@ -74,6 +74,53 @@
     #button-grid button:active {
       background-color: #3730a3;
     }
+
+    #result-area {
+      margin-top: 32px;
+      display: none;
+    }
+
+    #result-area .info-text {
+      color: #64748b;
+      font-size: 0.875rem;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    #result-area .post-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+
+    #result-area .post-card .post-id {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    #result-area .post-card h3 {
+      font-size: 1rem;
+      color: #1e293b;
+      margin-bottom: 6px;
+    }
+
+    #result-area .post-card p {
+      font-size: 0.875rem;
+      color: #475569;
+      text-align: left;
+      margin-bottom: 0;
+    }
+
+    #result-area .loading {
+      text-align: center;
+      color: #4f46e5;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -81,6 +128,7 @@
     <h1>Stub App</h1>
     <p>Click a button to trigger its handler function.</p>
     <div id="button-grid"></div>
+    <div id="result-area"></div>
   </div>
 
   <script src="config.js"></script>

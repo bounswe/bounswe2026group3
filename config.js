@@ -10,9 +10,9 @@ const NUM_BUTTONS = 7;
 const BUTTON_LABELS = [
   "Click and laugh",
   "Button 2",
-  "Button 3",
+  "Ekin's API",
   "Button 4",
   "Button 5",
-  "Button 6",
-  "Button 7",
+  "Omer's Posts",
+  "Arif Evren",
 ];

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arif Evren – Istanbul Weather</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      padding: 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 680px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 48px 40px;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.875rem;
+      color: #475569;
+      cursor: pointer;
+      margin-bottom: 32px;
+      transition: background 150ms;
+    }
+    .back-btn:hover { background: #f1f5f9; }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .api-description {
+      background: #f1f5f9;
+      border-left: 4px solid #4f46e5;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 24px 0;
+      color: #475569;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+    .api-description strong { color: #1e293b; }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 12px;
+    }
+
+    #status {
+      color: #64748b;
+      font-size: 0.9375rem;
+      margin-bottom: 16px;
+    }
+
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .weather-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .weather-card .label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .weather-card .value {
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .weather-card .unit {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+
+    .raw-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 20px;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      line-height: 1.6;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .error {
+      color: #ef4444;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 14px 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <button class="back-btn" onclick="history.back()">&#8592; Back</button>
+
+    <h1>Istanbul Weather Forecast</h1>
+
+    <div class="api-description">
+      <strong>API:</strong> <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> — a free, open-source weather forecast API.<br><br>
+      It provides high-resolution weather data worldwide using numerical weather prediction models
+      (such as ECMWF and GFS). This page fetches the <strong>current weather conditions in Istanbul, Turkey</strong>
+      (lat 41.01°N, lon 28.95°E), including temperature, wind speed, wind direction, and weather code — all
+      without requiring an API key.
+    </div>
+
+    <p class="section-title">Current Conditions</p>
+    <p id="status">Fetching data…</p>
+
+    <div class="weather-grid" id="weather-grid" style="display:none"></div>
+
+    <div id="raw-section" style="display:none">
+      <p class="raw-title">Raw API Response</p>
+      <pre id="raw-output"></pre>
+    </div>
+
+    <div id="error-box" class="error" style="display:none"></div>
+  </div>
+
+  <script>
+    const WMO_CODES = {
+      0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+      45: "Foggy", 48: "Icy fog", 51: "Light drizzle", 53: "Moderate drizzle",
+      55: "Dense drizzle", 61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+      71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+      80: "Slight showers", 81: "Moderate showers", 82: "Violent showers",
+      95: "Thunderstorm", 96: "Thunderstorm w/ hail", 99: "Thunderstorm w/ heavy hail"
+    };
+
+    const API_URL =
+      "https://api.open-meteo.com/v1/forecast" +
+      "?latitude=41.01&longitude=28.95" +
+      "&current_weather=true" +
+      "&timezone=Europe%2FIstanbul";
+
+    fetch(API_URL)
+      .then(function(res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        var cw = data.current_weather;
+        var condition = WMO_CODES[cw.weathercode] || ("Code " + cw.weathercode);
+        var isDay = cw.is_day ? "Day" : "Night";
+
+        var items = [
+          { label: "Temperature", value: cw.temperature, unit: "°C" },
+          { label: "Wind Speed",  value: cw.windspeed,   unit: "km/h" },
+          { label: "Wind Dir",    value: cw.winddirection, unit: "°" },
+          { label: "Condition",   value: condition,       unit: "" },
+          { label: "Time of Day", value: isDay,           unit: "" },
+        ];
+
+        var grid = document.getElementById("weather-grid");
+        items.forEach(function(item) {
+          var card = document.createElement("div");
+          card.className = "weather-card";
+          card.innerHTML =
+            '<div class="label">' + item.label + '</div>' +
+            '<div class="value">' + item.value + '<span class="unit"> ' + item.unit + '</span></div>';
+          grid.appendChild(card);
+        });
+
+        document.getElementById("status").style.display = "none";
+        grid.style.display = "grid";
+
+        document.getElementById("raw-output").textContent = JSON.stringify(data, null, 2);
+        document.getElementById("raw-section").style.display = "block";
+      })
+      .catch(function(err) {
+        document.getElementById("status").style.display = "none";
+        var box = document.getElementById("error-box");
+        box.textContent = "Failed to fetch data: " + err.message;
+        box.style.display = "block";
+      });
+  </script>
+</body>
+</html>
