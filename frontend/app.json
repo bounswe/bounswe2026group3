@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "AccessMap",
+    "slug": "accessmap",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "accessmap",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": true },
+    "android": { "adaptiveIcon": { "backgroundColor": "#1A3C2A" } },
+    "web": { "bundler": "metro", "output": "single" },
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}
