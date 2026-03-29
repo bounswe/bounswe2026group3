@@ -4,10 +4,29 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.users.serializers import LoginSerializer, TokenOutputSerializer, LogoutSerializer
-from apps.users.services import login_user, logout_user
-from apps.users.throttles import AuthRateThrottle
+from rest_framework_simplejwt.tokens import RefreshToken
 
+from .serializers import RegisterResponseSerializer, RegisterSerializer
+from .serializers import LoginSerializer, TokenOutputSerializer, LogoutSerializer
+from .services import login_user, logout_user
+from .throttles import AuthRateThrottle
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        refresh = RefreshToken.for_user(user)
+
+        response_serializer = RegisterResponseSerializer(user, context={
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+        })
+
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
