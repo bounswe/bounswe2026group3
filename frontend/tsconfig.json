@@ -1,0 +1,21 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}
+```
+
+4. **"Commit changes..."** → **"Commit changes"**
+
+---
+
+**ADIM 5 — .env.example:**
+
+1. **"Add file"** → **"Create new file"**
+2. Dosya adı: `frontend/.env.example`
+3. İçerik:
+```
+API_BASE_URL=http://localhost:8000
