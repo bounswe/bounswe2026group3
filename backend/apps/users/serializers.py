@@ -1,26 +1,18 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import MobilityProfile, User
+from .models import MobilityAidType, MobilityProfile, User
 
 
 class MobilityProfileSerializer(serializers.Serializer):
-    mobilityAid = serializers.ChoiceField(
-        choices=MobilityProfile.MobilityAid.choices,
-        source='mobility_aid',
+    mobilityAidType = serializers.ChoiceField(
+        choices=MobilityAidType.choices,
+        source='mobility_aid_type',
     )
-    avoidStairs = serializers.BooleanField(
-        source='avoid_stairs',
-        default=False,
-    )
-    avoidSteepSlopes = serializers.BooleanField(
-        source='avoid_steep_slopes',
-        default=False,
-    )
-    maxSlopeGradient = serializers.FloatField(
-        source='max_slope_gradient',
+    additionalNeeds = serializers.CharField(
+        source='additional_needs',
         required=False,
-        allow_null=True,
+        default='',
     )
 
 
@@ -62,14 +54,14 @@ class RegisterSerializer(serializers.Serializer):
 class RegisterResponseSerializer(serializers.ModelSerializer):
     userId = serializers.UUIDField(source='id')
     fullName = serializers.CharField(source='full_name')
-    trustScore = serializers.IntegerField(source='trust_score')
+    trustScore = serializers.IntegerField(source='reputation_points')
     createdAt = serializers.DateTimeField(source='created_at')
     accessToken = serializers.SerializerMethodField()
     refreshToken = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['userId', 'email', 'fullName', 'status', 'trustScore',
+        fields = ['userId', 'email', 'fullName', 'account_status', 'trustScore',
                   'accessToken', 'refreshToken', 'createdAt']
 
     def get_accessToken(self, obj):
