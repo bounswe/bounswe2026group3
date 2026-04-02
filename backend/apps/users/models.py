@@ -35,15 +35,29 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     # User creation
+    class Status(models.TextChoices):
+        ACTIVE = 'ACTIVE', 'Active'
+        INACTIVE = 'INACTIVE', 'Inactive'
+        BANNED = 'BANNED', 'Banned'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    full_name = models.CharField(max_length=255, blank=True, default='')
+    full_name = models.CharField(max_length=255)
+    birth_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    trust_score = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['full_name']
+
+    class Meta:
+        db_table = 'users'
 
     def __str__(self):
         return self.email
