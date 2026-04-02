@@ -43,8 +43,19 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         return self.create_user(email, full_name, password, **extra_fields)
 
+# Authorization
+# No Guest User since it is not supposed to be in database
+class UserRole(models.TextChoices):
+    REGISTERED_USER = 'REGISTERED_USER', 'Registered User'
+    INFRASTRUCTURE_AUTHORITY = 'INFRASTRUCTURE_AUTHORITY', 'Infrastructure Authority'
+    ADMINISTRATOR = 'ADMINISTRATOR', 'Administrator'
 
 class User(AbstractBaseUser, PermissionsMixin):
+    class Status(models.TextChoices):
+        ACTIVE = 'ACTIVE', 'Active'
+        INACTIVE = 'INACTIVE', 'Inactive'
+        BANNED = 'BANNED', 'Banned'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255)

@@ -2,14 +2,17 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from rest_framework_simplejwt.tokens import RefreshToken
+from apps.users.serializers import LoginSerializer, TokenOutputSerializer, LogoutSerializer, RegisterSerializer
+from apps.users.services import login_user, logout_user
+from apps.users.throttles import AuthRateThrottle
 
-from .serializers import RegisterResponseSerializer, RegisterSerializer
-from .serializers import LoginSerializer, TokenOutputSerializer, LogoutSerializer
-from .services import login_user, logout_user
-from .throttles import AuthRateThrottle
+from apps.core.permissions import IsPublic, IsUser, IsAuthority
+
+from apps.users.serializers import RegisterResponseSerializer
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -56,3 +59,23 @@ class LogoutView(APIView):
         logout_user(refresh_token=serializer.validated_data['refresh'])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# For permission testing purposes
+class ReportsView(APIView):
+    permission_classes = [IsUser]
+
+    def post(self, request):
+        return Response({'message': 'Reports endpoint'}, status=status.HTTP_200_OK)
+
+class MapObstaclesView(APIView):
+    permission_classes = [IsPublic]
+
+    def get(self, request):
+        return Response({'message': 'Map obstacles endpoint'}, status=status.HTTP_200_OK)
+
+class AuthorityDashboardView(APIView):
+    permission_classes = [IsAuthority]
+
+    def get(self, request):
+        return Response({'message': 'Authority dashboard'}, status=status.HTTP_200_OK)

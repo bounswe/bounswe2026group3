@@ -1,6 +1,6 @@
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotAuthenticated, PermissionDenied
 from rest_framework.views import exception_handler
-
+from django.utils import timezone
 
 class ApplicationError(APIException):
     status_code = 400
@@ -13,14 +13,27 @@ class ApplicationError(APIException):
         super().__init__(detail=detail, code=code)
 
 
+
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
 
     if response is not None:
+
+        if isinstance(exc, NotAuthenticated):
+            code = 'UNAUTHORIZED'
+            message = 'Valid JWT token required.'
+        elif isinstance(exc, PermissionDenied):
+            code = 'FORBIDDEN'
+            message = 'You do not have permission for this action.'
+        else:
+            code = getattr(exc, 'default_code', 'ERROR')
+            message = str(exc.detail)
+
         response.data = {
             'error': {
-                'code': getattr(exc, 'default_code', 'error'),
-                'detail': response.data,
+                'code': code,
+                'detail': message,
+                'timestamp': timezone.now().isoformat(),
             }
         }
 

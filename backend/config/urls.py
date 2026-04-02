@@ -15,5 +15,7 @@ def health(request):
 urlpatterns = [
     path('health/', health),
     path('admin/', admin.site.urls),
+    path('auth/', include('apps.users.urls')),# login, refresh, logout is in users/views.py
+
     path('api/auth/', include('apps.users.urls')),
 ]
