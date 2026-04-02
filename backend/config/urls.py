@@ -1,9 +1,19 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.db import connection
+from django.http import JsonResponse
+from django.urls import include, path
 
-from apps.users.views import AuthorityDashboardView, ReportsView, MapObstaclesView
+
+def health(request):
+    try:
+        connection.ensure_connection()
+        return JsonResponse({"status": "ok", "db": "connected"})
+    except Exception:
+        return JsonResponse({"status": "error", "db": "unreachable"}, status=503)
+
 
 urlpatterns = [
+    path('health/', health),
     path('admin/', admin.site.urls),
     path('auth/', include('apps.users.urls')),# login, refresh, logout is in users/views.py
     path('map/obstacles/', MapObstaclesView.as_view()),
@@ -11,9 +21,3 @@ urlpatterns = [
     path('authority/dashboard/', AuthorityDashboardView.as_view()),
     path('api/auth/', include('apps.users.urls')),
 ]
-
-
-
-
-
-

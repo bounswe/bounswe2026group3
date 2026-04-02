@@ -15,7 +15,12 @@ dist/
 # Django
 backend/staticfiles/
 backend/db.sqlite3
-
+backend/apps/*/migrations/
+backend/supabase/.temp
+backend/.agents
+backend/.claude
+backend/skills-lock.json
+backend/.qoder
 # Node
 node_modules/
 .expo/
