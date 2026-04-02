@@ -4,6 +4,30 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 
 
+class AccountStatus(models.TextChoices):
+    ACTIVE = 'ACTIVE', 'Active'
+    SUSPENDED = 'SUSPENDED', 'Suspended'
+    BANNED = 'BANNED', 'Banned'
+
+
+class UserRole(models.TextChoices):
+    GUEST = 'GUEST', 'Guest'
+    REGISTERED_USER = 'REGISTERED_USER', 'Registered User'
+    TRUSTED_CONTRIBUTOR = 'TRUSTED_CONTRIBUTOR', 'Trusted Contributor'
+    INFRASTRUCTURE_AUTHORITY = 'INFRASTRUCTURE_AUTHORITY', 'Infrastructure Authority'
+    ADMINISTRATOR = 'ADMINISTRATOR', 'Administrator'
+
+
+class MobilityAidType(models.TextChoices):
+    WHEELCHAIR = 'WHEELCHAIR', 'Wheelchair'
+    ELECTRIC_WHEELCHAIR = 'ELECTRIC_WHEELCHAIR', 'Electric Wheelchair'
+    WALKER = 'WALKER', 'Walker'
+    CRUTCHES = 'CRUTCHES', 'Crutches'
+    STROLLER = 'STROLLER', 'Stroller'
+    HAND_CART = 'HAND_CART', 'Hand Cart'
+    NONE = 'NONE', 'None'
+
+
 class UserManager(BaseUserManager):
     def create_user(self, email, full_name, password=None, **extra_fields):
         if not email:
@@ -21,17 +45,21 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    class Status(models.TextChoices):
-        ACTIVE = 'ACTIVE', 'Active'
-        INACTIVE = 'INACTIVE', 'Inactive'
-        BANNED = 'BANNED', 'Banned'
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255)
     birth_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
-    trust_score = models.IntegerField(default=0)
+    role = models.CharField(
+        max_length=30,
+        choices=UserRole.choices,
+        default=UserRole.REGISTERED_USER,
+    )
+    account_status = models.CharField(
+        max_length=15,
+        choices=AccountStatus.choices,
+        default=AccountStatus.ACTIVE,
+    )
+    reputation_points = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -50,20 +78,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class MobilityProfile(models.Model):
-    class MobilityAid(models.TextChoices):
-        NONE = 'NONE', 'None'
-        WHEELCHAIR = 'WHEELCHAIR', 'Wheelchair'
-        WALKER = 'WALKER', 'Walker'
-        CANE = 'CANE', 'Cane'
-        CRUTCHES = 'CRUTCHES', 'Crutches'
-        SCOOTER = 'SCOOTER', 'Scooter'
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='mobility_profile')
-    mobility_aid = models.CharField(max_length=20, choices=MobilityAid.choices, default=MobilityAid.NONE)
-    avoid_stairs = models.BooleanField(default=False)
-    avoid_steep_slopes = models.BooleanField(default=False)
-    max_slope_gradient = models.FloatField(null=True, blank=True)
+    mobility_aid_type = models.CharField(
+        max_length=25,
+        choices=MobilityAidType.choices,
+        default=MobilityAidType.NONE,
+    )
+    additional_needs = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -71,4 +93,4 @@ class MobilityProfile(models.Model):
         db_table = 'mobility_profiles'
 
     def __str__(self):
-        return f'{self.user.email} - {self.mobility_aid}'
+        return f'{self.user.email} - {self.mobility_aid_type}'
