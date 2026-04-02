@@ -2,13 +2,17 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.users.serializers import LoginSerializer, TokenOutputSerializer, LogoutSerializer
+from apps.users.serializers import LoginSerializer, TokenOutputSerializer, LogoutSerializer, RegisterSerializer
 from apps.users.services import login_user, logout_user
 from apps.users.throttles import AuthRateThrottle
 
 from apps.core.permissions import IsPublic, IsUser, IsAuthority
+
+from apps.users.serializers import RegisterResponseSerializer
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
