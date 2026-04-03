@@ -10,6 +10,23 @@
     "ios": { "supportsTablet": true },
     "android": { "adaptiveIcon": { "backgroundColor": "#1A3C2A" } },
     "web": { "bundler": "metro", "output": "single" },
-    "plugins": ["expo-router", "expo-secure-store"]
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "AccessMap needs camera access to attach photo evidence to your obstacle report.",
+          "microphonePermission": false,
+          "photosPermission": "AccessMap needs photo library access to attach images to your obstacle report."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AccessMap needs your location to accurately tag where the obstacle is."
+        }
+      ]
+    ]
   }
 }
