@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { API_BASE } from '../constants/theme';
 
 let _access = '';
@@ -6,23 +7,44 @@ let _refresh = '';
 
 function isWeb(): boolean { return Platform.OS === 'web'; }
 
-export function getAccessToken(): string {
-  if (isWeb()) return localStorage.getItem('am_access') || '';
-  return _access;
+export async function hydrateTokens(): Promise<void> {
+  if (isWeb()) {
+    _access = localStorage.getItem('am_access') || '';
+    _refresh = localStorage.getItem('am_refresh') || '';
+  } else {
+    _access = (await SecureStore.getItemAsync('am_access')) ?? '';
+    _refresh = (await SecureStore.getItemAsync('am_refresh')) ?? '';
+  }
 }
-export function getRefreshToken(): string {
-  if (isWeb()) return localStorage.getItem('am_refresh') || '';
-  return _refresh;
-}
+
+export function getAccessToken(): string { return _access; }
+export function getRefreshToken(): string { return _refresh; }
+
 export function setTokens(access: string, refresh: string): void {
-  _access = access; _refresh = refresh;
-  if (isWeb()) { localStorage.setItem('am_access', access); localStorage.setItem('am_refresh', refresh); }
+  _access = access;
+  _refresh = refresh;
+  if (isWeb()) {
+    localStorage.setItem('am_access', access);
+    localStorage.setItem('am_refresh', refresh);
+  } else {
+    SecureStore.setItemAsync('am_access', access);
+    SecureStore.setItemAsync('am_refresh', refresh);
+  }
 }
+
 export function clearTokens(): void {
-  _access = ''; _refresh = '';
-  if (isWeb()) { localStorage.removeItem('am_access'); localStorage.removeItem('am_refresh'); }
+  _access = '';
+  _refresh = '';
+  if (isWeb()) {
+    localStorage.removeItem('am_access');
+    localStorage.removeItem('am_refresh');
+  } else {
+    SecureStore.deleteItemAsync('am_access');
+    SecureStore.deleteItemAsync('am_refresh');
+  }
 }
-export function isLoggedIn(): boolean { return !!getAccessToken(); }
+
+export function isLoggedIn(): boolean { return !!_access; }
 
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
