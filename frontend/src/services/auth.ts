@@ -72,25 +72,25 @@ export function parseDRFError(data: any): string {
 }
 
 export async function register(payload: RegisterPayload) {
-  const res = await fetch(`${API_BASE}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res = await fetch(`${API_BASE}/api/auth/register/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
 export async function login(payload: LoginPayload) {
-  const res = await fetch(`${API_BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res = await fetch(`${API_BASE}/api/auth/login/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
 export async function getMe() {
-  const res = await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/auth/me/`, { headers: authHeaders() });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
 export async function updateMe(payload: { fullName: string }) {
-  const res = await fetch(`${API_BASE}/api/auth/me`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+  const res = await fetch(`${API_BASE}/api/auth/me/`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
