@@ -1,3 +1,6 @@
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
 export const COLORS = {
   green900: '#1A3C2A',
   green800: '#1F5C3A',
@@ -31,4 +34,19 @@ export const COLORS = {
   white:    '#FFFFFF',
 };
 
-export const API_BASE = 'http://localhost:8000';
+function getApiBase(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl) return envUrl;
+
+  if (Platform.OS === 'web') return 'http://localhost:8000';
+
+  const host = Constants.expoConfig?.hostUri;
+  if (host) {
+    const ip = host.split(':')[0];
+    return `http://${ip}:8000`;
+  }
+
+  return 'http://localhost:8000';
+}
+
+export const API_BASE = getApiBase();

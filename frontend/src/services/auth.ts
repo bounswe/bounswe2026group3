@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { API_BASE } from '../constants/theme';
 
 let _access = '';
@@ -6,23 +7,44 @@ let _refresh = '';
 
 function isWeb(): boolean { return Platform.OS === 'web'; }
 
-export function getAccessToken(): string {
-  if (isWeb()) return localStorage.getItem('am_access') || '';
-  return _access;
+export async function hydrateTokens(): Promise<void> {
+  if (isWeb()) {
+    _access = localStorage.getItem('am_access') || '';
+    _refresh = localStorage.getItem('am_refresh') || '';
+  } else {
+    _access = (await SecureStore.getItemAsync('am_access')) ?? '';
+    _refresh = (await SecureStore.getItemAsync('am_refresh')) ?? '';
+  }
 }
-export function getRefreshToken(): string {
-  if (isWeb()) return localStorage.getItem('am_refresh') || '';
-  return _refresh;
-}
+
+export function getAccessToken(): string { return _access; }
+export function getRefreshToken(): string { return _refresh; }
+
 export function setTokens(access: string, refresh: string): void {
-  _access = access; _refresh = refresh;
-  if (isWeb()) { localStorage.setItem('am_access', access); localStorage.setItem('am_refresh', refresh); }
+  _access = access;
+  _refresh = refresh;
+  if (isWeb()) {
+    localStorage.setItem('am_access', access);
+    localStorage.setItem('am_refresh', refresh);
+  } else {
+    SecureStore.setItemAsync('am_access', access);
+    SecureStore.setItemAsync('am_refresh', refresh);
+  }
 }
+
 export function clearTokens(): void {
-  _access = ''; _refresh = '';
-  if (isWeb()) { localStorage.removeItem('am_access'); localStorage.removeItem('am_refresh'); }
+  _access = '';
+  _refresh = '';
+  if (isWeb()) {
+    localStorage.removeItem('am_access');
+    localStorage.removeItem('am_refresh');
+  } else {
+    SecureStore.deleteItemAsync('am_access');
+    SecureStore.deleteItemAsync('am_refresh');
+  }
 }
-export function isLoggedIn(): boolean { return !!getAccessToken(); }
+
+export function isLoggedIn(): boolean { return !!_access; }
 
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -50,25 +72,25 @@ export function parseDRFError(data: any): string {
 }
 
 export async function register(payload: RegisterPayload) {
-  const res = await fetch(`${API_BASE}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res = await fetch(`${API_BASE}/api/auth/register/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
 export async function login(payload: LoginPayload) {
-  const res = await fetch(`${API_BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const res = await fetch(`${API_BASE}/api/auth/login/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
 export async function getMe() {
-  const res = await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/auth/me/`, { headers: authHeaders() });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
 
 export async function updateMe(payload: { fullName: string }) {
-  const res = await fetch(`${API_BASE}/api/auth/me`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+  const res = await fetch(`${API_BASE}/api/auth/me/`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
