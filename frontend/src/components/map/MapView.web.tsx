@@ -1,4 +1,5 @@
 /// <reference lib="dom" />
+// @ts-ignore
 import 'leaflet/dist/leaflet.css';
 
 import L from 'leaflet';
@@ -329,6 +330,7 @@ const s = StyleSheet.create({
     height: 42,
     fontSize: 14,
     color: COLORS.gray800,
+    paddingHorizontal: 4,
   },
   searchGoBtn: { padding: 2 },
 

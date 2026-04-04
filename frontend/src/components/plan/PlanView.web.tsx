@@ -1,4 +1,5 @@
 /// <reference lib="dom" />
+// @ts-ignore
 import 'leaflet/dist/leaflet.css';
 
 import L from 'leaflet';
@@ -63,14 +64,15 @@ function FitBounds({
   dest: [number, number] | null;
 }) {
   const map = useMap();
+  const prevBothSet = useRef(false);
+
   useEffect(() => {
-    if (origin && dest) {
+    const bothSet = origin !== null && dest !== null;
+    // Only fit when transitioning from incomplete → both set (first time second pin placed)
+    if (bothSet && !prevBothSet.current) {
       map.fitBounds([origin, dest], { padding: [60, 60] });
-    } else if (origin) {
-      map.setView(origin, 17);
-    } else if (dest) {
-      map.setView(dest, 17);
     }
+    prevBothSet.current = bothSet;
   }, [origin, dest]);
   return null;
 }
@@ -117,12 +119,30 @@ export default function PlanView() {
     else                   { setDest(point);   setDestQ(r.name);   }
   }, []);
 
-  const handleMapClick = useCallback((ll: L.LatLng) => {
-    const label = `${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`;
-    const point: MapPoint = { lat: ll.lat, lng: ll.lng, label };
-    if (pinMode === 'origin') { setOrigin(point); setOriginQ(label); }
-    else                       { setDest(point);   setDestQ(label);   }
+  const handleMapClick = useCallback(async (ll: L.LatLng) => {
+    const coordLabel = `${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`;
+    const point: MapPoint = { lat: ll.lat, lng: ll.lng, label: coordLabel };
+    // Show coords immediately, then replace with address
+    if (pinMode === 'origin') { setOrigin(point); setOriginQ(coordLabel); }
+    else                       { setDest(point);   setDestQ(coordLabel);   }
     setPinMode(null);
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${ll.lat}&lon=${ll.lng}&format=json&accept-language=en`,
+        { headers: { 'User-Agent': 'AccessMap/1.0' } },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const name: string = data.display_name ?? coordLabel;
+        const short = name.split(',').slice(0, 3).join(',').trim();
+        const named: MapPoint = { lat: ll.lat, lng: ll.lng, label: short };
+        if (pinMode === 'origin') { setOrigin(named); setOriginQ(short); }
+        else                       { setDest(named);   setDestQ(short);   }
+      }
+    } catch {
+      // keep coord label
+    }
   }, [pinMode]);
 
   const doCalculate = useCallback(async (guestPrefs?: GuestPreferences) => {
@@ -430,7 +450,8 @@ const s = StyleSheet.create({
     height: 40,
     backgroundColor: COLORS.gray100,
     borderRadius: 9,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
+    paddingLeft: 14,
     fontSize: 14,
     color: COLORS.gray800,
     borderWidth: 1,
