@@ -1,7 +1,26 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { COLORS } from '../../src/constants/theme';
+import { useState } from 'react';
+import ReportForm from '../../src/components/reports/ReportForm';
+import ReportSuccessScreen from '../../src/components/reports/ReportSuccessScreen';
+import type { SubmitReportResponse } from '../../src/types/report';
+
+type Screen = 'form' | 'success';
 
 export default function ReportScreen() {
-  return (<View style={s.c}><Text style={s.t}>Report Obstacle</Text><Text style={s.s}>Coming in Milestone 2</Text></View>);
+  const [screen, setScreen] = useState<Screen>('form');
+  const [lastReport, setLastReport] = useState<SubmitReportResponse | null>(null);
+
+  if (screen === 'success' && lastReport) {
+    return (
+      <ReportSuccessScreen
+        report={lastReport}
+        onSubmitAnother={() => { setLastReport(null); setScreen('form'); }}
+      />
+    );
+  }
+
+  return (
+    <ReportForm
+      onSuccess={r => { setLastReport(r); setScreen('success'); }}
+    />
+  );
 }
-const s = StyleSheet.create({ c: { flex: 1, backgroundColor: COLORS.gray100, alignItems: 'center', justifyContent: 'center' }, t: { fontSize: 18, fontWeight: '700', color: COLORS.gray800, marginBottom: 6 }, s: { fontSize: 13, color: COLORS.gray500 } });
