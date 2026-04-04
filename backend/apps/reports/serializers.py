@@ -1,0 +1,31 @@
+from rest_framework import serializers
+
+from .models import ObstacleCategory, ReportContext
+
+
+class LocationSerializer(serializers.Serializer):
+    lat = serializers.DecimalField(max_digits=9, decimal_places=6)
+    lng = serializers.DecimalField(max_digits=9, decimal_places=6)
+
+
+class ReportSerializer(serializers.Serializer):
+    location = LocationSerializer()
+    context = serializers.ChoiceField(choices=ReportContext.choices)
+    category = serializers.ChoiceField(
+        choices=ObstacleCategory.choices,
+        allow_null=True,
+        required=False,
+    )
+    description = serializers.CharField(allow_blank=True, required=False, default="")
+    photos = serializers.ListField(
+        child=serializers.CharField(),
+        min_length=1,
+        max_length=3,
+    )
+
+class ReportResponseSerializer(serializers.Serializer):
+    reportId = serializers.IntegerField(source="id")
+    status = serializers.CharField()
+    autoVerified = serializers.BooleanField()
+    duplicateCandidate = serializers.CharField(allow_null=True)
+    createdAt = serializers.DateTimeField(source="created_at")
