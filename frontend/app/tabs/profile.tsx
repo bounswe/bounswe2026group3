@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
 import { getMe, updateMe, clearTokens, isLoggedIn, parseDRFError, UserProfile } from '../../src/services/auth';
+import { MobilityProfileCard } from '../../src/components/profile/MobilityProfileCard';
 
 function getInitials(name: string): string {
   if (!name) return '?';
@@ -80,10 +81,7 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      <View style={s.card}>
-        <View style={s.cardTitleRow}><Ionicons name="accessibility-outline" size={16} color={COLORS.green600} /><Text style={s.cardTitle}>Mobility Profile</Text></View>
-        <View style={s.stub}><View style={s.stubTag}><Text style={s.stubTagText}>MILESTONE 2</Text></View><Text style={s.stubP}>Your mobility preferences and accessibility needs will appear here.</Text></View>
-      </View>
+      <MobilityProfileCard />
 
       <View style={[s.card, { marginBottom: 20 }]}>
         <View style={s.cardTitleRow}><Ionicons name="ribbon-outline" size={16} color={COLORS.green600} /><Text style={s.cardTitle}>Badges</Text></View>
