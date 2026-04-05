@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Switch,
+  ActivityIndicator, StyleSheet, Switch,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,8 +26,7 @@ function formatTime(sec: number): string {
 
 // ── Map HTML ──────────────────────────────────────────────────────────────────
 
-function buildMapHTML(): string {
-  return `<!DOCTYPE html>
+const PLAN_MAP_HTML = `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -106,7 +105,6 @@ function buildMapHTML(): string {
 </script>
 </body>
 </html>`;
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -116,6 +114,7 @@ interface MapPoint { lat: number; lng: number; label: string; }
 
 export default function PlanView() {
   const webViewRef = useRef<WebView>(null);
+  const planSource = useMemo(() => ({ html: PLAN_MAP_HTML }), []);
 
   const [origin, setOrigin]       = useState<MapPoint | null>(null);
   const [dest,   setDest]         = useState<MapPoint | null>(null);
@@ -310,7 +309,7 @@ export default function PlanView() {
       <WebView
         ref={webViewRef}
         style={s.map}
-        source={{ html: buildMapHTML() }}
+        source={planSource}
         onMessage={handleMessage}
         originWhitelist={['*']}
         javaScriptEnabled

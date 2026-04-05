@@ -136,6 +136,7 @@ export default function MapView() {
   const [droppedPin, setDroppedPin] = useState<L.LatLng | null>(null);
   const [query, setQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
+  const [boundsKey, setBoundsKey] = useState('');
 
   // Detail cache stored in state so updates trigger re-renders
   const [detailMap, setDetailMap] = useState<Record<string, ObstacleDetail | 'loading'>>({});
@@ -160,11 +161,13 @@ export default function MapView() {
       }
     });
     return () => { cancelled = true; };
-  }, [currentBounds, showPassive]);
+  }, [boundsKey, showPassive]);
 
   const handleBoundsChange = useCallback((b: L.LatLngBounds, z: number) => {
     setCurrentBounds(b);
     setZoom(z);
+    const key = `${b.getNorth().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getWest().toFixed(4)}`;
+    setBoundsKey(key);
   }, []);
 
   const handlePinClick = useCallback(async (id: string) => {

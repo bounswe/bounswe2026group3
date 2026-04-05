@@ -1,33 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import WebView from 'react-native-webview';
 
 import { fetchObstacles, searchLocations, type Obstacle } from '../../api/map';
-import { COLORS, API_BASE } from '../../constants/theme';
-import { getAccessToken } from '../../services/auth';
+import { COLORS } from '../../constants/theme';
 
 const BOUN_CENTER = { lat: 41.0847, lng: 29.0503 };
 
-// ── HTML injected into WebView ───────────────────────────────────────────────
+// ── Static HTML — built once, never changes ─────────────────────────────────
 
-function buildMapHTML(obstacles: Obstacle[], showPassive: boolean, zoom: number): string {
-  const obsJson = JSON.stringify(obstacles);
-  const CATEGORY_COLOR: Record<string, string> = {
-    BROKEN_RAMP: '#EF4444',
-    NARROW_SIDEWALK: '#F97316',
-    DAMAGED_SURFACE: '#F97316',
-    ROAD_CONSTRUCTION: '#EAB308',
-    BLOCKED_PATH: '#DC2626',
-    OTHER: '#9CA3AF',
-  };
-
-  return `<!DOCTYPE html>
+const MAP_HTML = `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { height: 100%; width: 100%; }
@@ -39,7 +27,10 @@ function buildMapHTML(obstacles: Obstacle[], showPassive: boolean, zoom: number)
 <body>
 <div id="map"></div>
 <script>
-  var CATEGORY_COLOR = ${JSON.stringify(CATEGORY_COLOR)};
+  var CATEGORY_COLOR = {
+    BROKEN_RAMP: '#EF4444', NARROW_SIDEWALK: '#F97316', DAMAGED_SURFACE: '#F97316',
+    ROAD_CONSTRUCTION: '#EAB308', BLOCKED_PATH: '#DC2626', OTHER: '#9CA3AF'
+  };
   var STATUS_COLOR = {
     UNVERIFIED: '#9CA3AF', PASSIVE: '#9CA3AF',
     VERIFIED: '#34A264', RESOLVED_AWAITING_VALIDATION: '#3B82F6', CLOSED: '#6B7280'
@@ -49,10 +40,9 @@ function buildMapHTML(obstacles: Obstacle[], showPassive: boolean, zoom: number)
     RESOLVED_AWAITING_VALIDATION: 'Awaiting Validation', CLOSED: 'Closed'
   };
 
-  var map = L.map('map', { zoomControl: false }).setView([${BOUN_CENTER.lat}, ${BOUN_CENTER.lng}], ${zoom});
+  var map = L.map('map', { zoomControl: false }).setView([${BOUN_CENTER.lat}, ${BOUN_CENTER.lng}], 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap',
-    maxZoom: 20
+    attribution: '&copy; OpenStreetMap', maxZoom: 20
   }).addTo(map);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -67,21 +57,18 @@ function buildMapHTML(obstacles: Obstacle[], showPassive: boolean, zoom: number)
       var isPassive = obs.status === 'PASSIVE';
       var color = CATEGORY_COLOR[obs.category] || '#9CA3AF';
       var marker = L.circleMarker([obs.latitude, obs.longitude], {
-        radius: 10,
-        color: color,
-        fillColor: color,
+        radius: 10, color: color, fillColor: color,
         fillOpacity: isPassive ? 0.4 : 0.85,
-        weight: isPassive ? 1 : 2,
-        opacity: isPassive ? 0.5 : 1
+        weight: isPassive ? 1 : 2, opacity: isPassive ? 0.5 : 1
       });
       var statusColor = STATUS_COLOR[obs.status] || '#9CA3AF';
       var statusLabel = STATUS_LABEL[obs.status] || obs.status;
       var catLabel = obs.category.replace(/_/g, ' ');
       var popupHtml =
-        '<div class="popup-title">' + obs.title + '</div>' +
-        '<span class="badge" style="background:' + color + '">' + catLabel + '</span>' +
-        '<span class="badge" style="background:' + statusColor + '">' + statusLabel + '</span>' +
-        (obs.description ? '<div class="popup-desc">' + obs.description + '</div>' : '');
+        '<div class="popup-title">' + obs.title + '<\\/div>' +
+        '<span class="badge" style="background:' + color + '">' + catLabel + '<\\/span>' +
+        '<span class="badge" style="background:' + statusColor + '">' + statusLabel + '<\\/span>' +
+        (obs.description ? '<div class="popup-desc">' + obs.description + '<\\/div>' : '');
       marker.bindPopup(popupHtml, { maxWidth: 220 });
       marker.on('click', function() {
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PIN_CLICK', id: obs.id }));
@@ -91,48 +78,57 @@ function buildMapHTML(obstacles: Obstacle[], showPassive: boolean, zoom: number)
     });
   }
 
-  var obstacles = ${obsJson};
-  renderObstacles(obstacles, ${showPassive});
-
+  var boundsTimer = null;
   map.on('moveend zoomend', function() {
-    var b = map.getBounds();
-    var z = map.getZoom();
-    window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'BOUNDS_CHANGE',
-      north: b.getNorth(), south: b.getSouth(),
-      east: b.getEast(), west: b.getWest(),
-      zoom: z
-    }));
+    clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(function() {
+      var b = map.getBounds();
+      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'BOUNDS_CHANGE',
+        north: b.getNorth(), south: b.getSouth(),
+        east: b.getEast(), west: b.getWest(),
+        zoom: map.getZoom()
+      }));
+    }, 300);
   });
 
   window.updateObstacles = function(json, showPassive) {
-    obstacles = JSON.parse(json);
-    renderObstacles(obstacles, showPassive);
+    renderObstacles(JSON.parse(json), showPassive);
   };
 
   window.flyTo = function(lat, lng, z) {
     map.flyTo([lat, lng], z || 18);
   };
-</script>
+
+  // Signal ready
+  window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'READY' }));
+<\/script>
 </body>
 </html>`;
-}
 
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function MapView() {
   const webViewRef = useRef<WebView>(null);
+  const readyRef = useRef(false);
 
-  const [obstacles, setObstacles]     = useState<Obstacle[]>([]);
   const [showPassive, setShowPassive] = useState(false);
   const [loading, setLoading]         = useState(false);
   const [query, setQuery]             = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
-  const [zoom, setZoom]               = useState(16);
 
   const currentBoundsRef = useRef<{ north: number; south: number; east: number; west: number } | null>(null);
   const showPassiveRef   = useRef(showPassive);
   showPassiveRef.current = showPassive;
+
+  const source = useMemo(() => ({ html: MAP_HTML }), []);
+
+  const pushObstacles = useCallback((data: Obstacle[], passive: boolean) => {
+    if (!readyRef.current) return;
+    webViewRef.current?.injectJavaScript(
+      `window.updateObstacles(${JSON.stringify(JSON.stringify(data))}, ${passive}); true;`
+    );
+  }, []);
 
   const loadObstacles = useCallback(async (
     bbox: { north: number; south: number; east: number; west: number },
@@ -141,14 +137,9 @@ export default function MapView() {
     setLoading(true);
     const data = await fetchObstacles(bbox, passive);
     setLoading(false);
-    setObstacles(data);
-    // Push updated obstacles into WebView
-    webViewRef.current?.injectJavaScript(
-      `window.updateObstacles(${JSON.stringify(JSON.stringify(data))}, ${passive}); true;`
-    );
-  }, []);
+    pushObstacles(data, passive);
+  }, [pushObstacles]);
 
-  // When showPassive toggle changes, re-fetch
   useEffect(() => {
     if (currentBoundsRef.current) {
       loadObstacles(currentBoundsRef.current, showPassive);
@@ -158,10 +149,11 @@ export default function MapView() {
   const handleMessage = useCallback((event: any) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === 'BOUNDS_CHANGE') {
+      if (msg.type === 'READY') {
+        readyRef.current = true;
+      } else if (msg.type === 'BOUNDS_CHANGE') {
         const bbox = { north: msg.north, south: msg.south, east: msg.east, west: msg.west };
         currentBoundsRef.current = bbox;
-        setZoom(msg.zoom);
         loadObstacles(bbox, showPassiveRef.current);
       }
     } catch {}
@@ -183,11 +175,8 @@ export default function MapView() {
     }
   };
 
-  const html = buildMapHTML(obstacles, showPassive, zoom);
-
   return (
     <View style={s.container}>
-      {/* Toolbar */}
       <View style={s.toolbar}>
         <View style={s.searchWrap}>
           <Ionicons name="search-outline" size={16} color={COLORS.gray400} />
@@ -220,11 +209,10 @@ export default function MapView() {
 
       {loading && <View style={s.loadingBar} />}
 
-      {/* Map WebView */}
       <WebView
         ref={webViewRef}
         style={s.map}
-        source={{ html }}
+        source={source}
         onMessage={handleMessage}
         originWhitelist={['*']}
         javaScriptEnabled
@@ -240,50 +228,24 @@ export default function MapView() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
   toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray200,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.gray200,
   },
   searchWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 42,
-    backgroundColor: COLORS.gray100,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    height: 42, backgroundColor: COLORS.gray100, borderRadius: 10,
+    paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.gray200,
   },
-  searchInput: {
-    flex: 1,
-    height: 42,
-    fontSize: 14,
-    color: COLORS.gray800,
-    paddingHorizontal: 4,
-  },
+  searchInput: { flex: 1, height: 42, fontSize: 14, color: COLORS.gray800, paddingHorizontal: 4 },
   searchGoBtn: { padding: 2 },
   passiveChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 42,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: COLORS.gray200,
-    backgroundColor: COLORS.white,
+    flexDirection: 'row', alignItems: 'center', gap: 6, height: 42,
+    paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5,
+    borderColor: COLORS.gray200, backgroundColor: COLORS.white,
   },
   passiveChipActive: { borderColor: COLORS.green500, backgroundColor: COLORS.green50 },
   chipDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.gray300 },
