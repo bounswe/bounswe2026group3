@@ -84,13 +84,17 @@ export async function login(payload: LoginPayload) {
 }
 
 export async function getMe() {
-  const res = await fetch(`${API_BASE}/api/auth/me/`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/auth/users/me`, { headers: authHeaders() });
   const data = await res.json().catch(() => ({}));
+  if (res.ok) {
+    data.trustScore = data.trustScore ?? data.reputationPoints ?? 0;
+    data.status = data.status ?? data.accountStatus ?? 'ACTIVE';
+  }
   return { ok: res.ok, status: res.status, data };
 }
 
 export async function updateMe(payload: { fullName: string }) {
-  const res = await fetch(`${API_BASE}/api/auth/me/`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+  const res = await fetch(`${API_BASE}/api/auth/users/me`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
