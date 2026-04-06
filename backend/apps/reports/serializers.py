@@ -26,6 +26,12 @@ class ReportSerializer(serializers.Serializer):
 class ReportResponseSerializer(serializers.Serializer):
     reportId = serializers.IntegerField(source="id")
     status = serializers.CharField()
-    autoVerified = serializers.BooleanField()
-    duplicateCandidate = serializers.CharField(allow_null=True)
+    autoVerified = serializers.SerializerMethodField()
+    duplicateCandidate = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at")
+
+    def get_autoVerified(self, obj):
+        return self.context.get("autoVerified", False)
+
+    def get_duplicateCandidate(self, obj):
+        return self.context.get("duplicateCandidate", None)
