@@ -23,6 +23,8 @@ const BOUN_CENTER: [number, number] = [41.0847, 29.0503];
 const DEFAULT_ZOOM = 16;
 // INDOOR obstacles are only shown above this zoom level
 const HIGH_DETAIL_ZOOM = 18;
+// Approximate viewport at zoom 16 for prefetch (slightly oversized to cover any screen)
+const DEFAULT_BBOX = { north: 41.095, south: 41.074, east: 29.065, west: 29.035 };
 
 const CATEGORY_COLOR: Record<string, string> = {
   BROKEN_RAMP: COLORS.red500,
@@ -140,12 +142,20 @@ export default function MapView() {
 
   // Detail cache stored in state so updates trigger re-renders
   const [detailMap, setDetailMap] = useState<Record<string, ObstacleDetail | 'loading'>>({});
+  const prefetchedRef = useRef(false);
+
+  // Prefetch: start loading immediately on mount with default bounds, don't wait for Leaflet
+  useEffect(() => {
+    prefetchedRef.current = true;
+    fetchObstacles(DEFAULT_BBOX, false).then((data) => {
+      setObstacles((prev) => (prev.length === 0 ? data : prev));
+    });
+  }, []);
 
   // Re-fetch whenever viewport or passive toggle changes
   useEffect(() => {
     if (!currentBounds) return;
     let cancelled = false;
-    setLoading(true);
     fetchObstacles(
       {
         north: currentBounds.getNorth(),
@@ -157,7 +167,6 @@ export default function MapView() {
     ).then((data) => {
       if (!cancelled) {
         setObstacles(data);
-        setLoading(false);
       }
     });
     return () => { cancelled = true; };

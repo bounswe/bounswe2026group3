@@ -1,3 +1,7 @@
+import hashlib
+import json
+
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -5,6 +9,8 @@ from rest_framework.permissions import AllowAny
 
 from .selectors import get_obstacles_in_bbox, get_obstacle_detail, search_campus_locations
 from .serializers import ObstacleSerializer, ObstacleDetailSerializer, CampusLocationSerializer
+
+OBSTACLES_CACHE_TTL = 30  # seconds
 
 
 class ObstacleListView(APIView):
@@ -23,9 +29,20 @@ class ObstacleListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        cache_key = "obstacles:" + hashlib.md5(
+            json.dumps([round(sw_lat, 3), round(sw_lng, 3), round(ne_lat, 3), round(ne_lng, 3),
+                        include_passive, status_filter]).encode()
+        ).hexdigest()
+
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         obstacles = get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive, status_filter)
         serializer = ObstacleSerializer(obstacles, many=True)
-        return Response({"obstacles": serializer.data, "total": obstacles.count()})
+        data = {"obstacles": serializer.data, "total": obstacles.count()}
+        cache.set(cache_key, data, OBSTACLES_CACHE_TTL)
+        return Response(data)
 
 
 class ObstacleDetailView(APIView):

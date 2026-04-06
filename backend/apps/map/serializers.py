@@ -14,6 +14,9 @@ class ObstacleSerializer(serializers.Serializer):
     category = serializers.CharField()
     context = serializers.CharField()
     status = serializers.CharField()
+    title = serializers.CharField()
+    description = serializers.CharField()
+    isIndoor = serializers.SerializerMethodField()
     upvoteCount = serializers.SerializerMethodField()
     thumbnailUrl = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at")
@@ -21,8 +24,11 @@ class ObstacleSerializer(serializers.Serializer):
     def get_location(self, obj):
         return {"lat": float(obj.latitude), "lng": float(obj.longitude)}
 
+    def get_isIndoor(self, obj):
+        return obj.context == 'INDOOR'
+
     def get_upvoteCount(self, obj):
-        return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.UPVOTE)
+        return getattr(obj, 'upvote_count', 0)
 
     def get_thumbnailUrl(self, obj):
         first_photo = next(iter(obj.photos.all()), None)

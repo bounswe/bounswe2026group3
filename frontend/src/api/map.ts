@@ -34,12 +34,34 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const CATEGORY_LABEL: Record<string, string> = {
+  BROKEN_RAMP: 'Broken Ramp',
+  NARROW_SIDEWALK: 'Narrow Sidewalk',
+  DAMAGED_SURFACE: 'Damaged Surface',
+  ROAD_CONSTRUCTION: 'Road Construction',
+  BLOCKED_PATH: 'Blocked Path',
+  OTHER: 'Other',
+};
+
+function mapObstacle(raw: any): Obstacle {
+  return {
+    id: raw.reportId ?? raw.id,
+    title: raw.title ?? CATEGORY_LABEL[raw.category] ?? raw.category?.replace(/_/g, ' ') ?? '',
+    description: raw.description ?? '',
+    category: raw.category,
+    status: raw.status,
+    latitude: raw.location?.lat ?? raw.latitude,
+    longitude: raw.location?.lng ?? raw.longitude,
+    isIndoor: raw.isIndoor ?? raw.context === 'INDOOR',
+  };
+}
+
 export async function fetchObstacles(
   bbox: { north: number; south: number; east: number; west: number },
   includePassive = false,
 ): Promise<Obstacle[]> {
   const params = new URLSearchParams({
-    bbox: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,
+    bbox: `${bbox.south},${bbox.west},${bbox.north},${bbox.east}`,
     includePassive: String(includePassive),
   });
   try {
@@ -48,7 +70,8 @@ export async function fetchObstacles(
     });
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
-    return Array.isArray(data) ? data : (data.results ?? []);
+    const list = Array.isArray(data) ? data : (data.obstacles ?? data.results ?? []);
+    return list.map(mapObstacle);
   } catch {
     return [];
   }
@@ -60,7 +83,17 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
       headers: authHeaders(),
     });
     if (!res.ok) return null;
-    return await res.json().catch(() => null);
+    const raw = await res.json().catch(() => null);
+    if (!raw) return null;
+    const base = mapObstacle(raw);
+    return {
+      ...base,
+      photos: (raw.photos ?? []).map((p: any) => ({
+        imageUrl: p.url ?? p.imageUrl,
+        uploadedAt: p.uploadedAt ?? p.uploaded_at,
+      })),
+      upvoteCount: raw.upvoteCount ?? 0,
+    };
   } catch {
     return null;
   }
@@ -74,7 +107,13 @@ export async function searchLocations(q: string): Promise<SearchResult[]> {
     });
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
-    return Array.isArray(data) ? data : (data.results ?? []);
+    const list = Array.isArray(data) ? data : (data.results ?? []);
+    return list.map((r: any) => ({
+      id: r.id ?? r.name ?? '',
+      name: r.name ?? '',
+      latitude: r.location?.lat ?? r.latitude,
+      longitude: r.location?.lng ?? r.longitude,
+    }));
   } catch {
     return [];
   }
