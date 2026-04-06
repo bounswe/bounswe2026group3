@@ -1,47 +1,185 @@
+from unittest.mock import MagicMock, patch
+
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.reports.models import Report
-from apps.routing.management.commands.seed_campus_graph import EDGES, NODES
-from apps.routing.models import CampusEdge, CampusNode
-from apps.routing.services import encode_polyline
 from apps.users.models import MobilityProfile, User
 
 
-class RouteTestMixin:
-    """Shared setup for routing tests: seeds campus graph and creates helpers."""
+# A mock OSRM response for two points near Boğaziçi campus
+MOCK_OSRM_RESPONSE = {
+    'code': 'Ok',
+    'routes': [{
+        'geometry': {
+            'type': 'LineString',
+            'coordinates': [
+                [29.0510, 41.0825],
+                [29.0508, 41.0830],
+                [29.0505, 41.0835],
+                [29.0500, 41.0840],
+                [29.0490, 41.0850],
+                [29.0470, 41.0855],
+                [29.0450, 41.0860],
+                [29.0445, 41.0865],
+            ],
+        },
+        'distance': 620.5,
+        'duration': 480.0,
+    }],
+}
 
-    def seed_graph(self):
-        node_map = {}
-        for node_data in NODES:
-            node = CampusNode.objects.create(
-                name=node_data["name"],
-                node_type=node_data["node_type"],
-                latitude=node_data["lat"],
-                longitude=node_data["lng"],
-                is_accessible=node_data["accessible"],
-            )
-            node_map[node.name] = node
 
-        for from_name, to_name, distance, accessible, surface, ramp, slope, stairs in EDGES:
-            from_node = node_map[from_name]
-            to_node = node_map[to_name]
-            for src, dst in [(from_node, to_node), (to_node, from_node)]:
-                CampusEdge.objects.create(
-                    from_node=src,
-                    to_node=dst,
-                    distance_meters=distance,
-                    is_accessible=accessible,
-                    surface_type=surface,
-                    has_ramp=ramp,
-                    slope_grade=slope,
-                    is_stairs=stairs,
-                )
+def mock_osrm_get(*args, **kwargs):
+    """Return a mock requests.Response with OSRM data."""
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.json.return_value = MOCK_OSRM_RESPONSE
+    return resp
 
-        return node_map
 
-    def create_user_with_profile(self, avoid_stairs=True, avoid_steep=True, max_slope=8.0):
+def mock_osrm_failure(*args, **kwargs):
+    """Return a mock requests.Response simulating OSRM failure."""
+    resp = MagicMock()
+    resp.status_code = 500
+    return resp
+
+
+def make_reporter():
+    return User.objects.create_user(
+        email='reporter@test.com',
+        full_name='Reporter',
+        password='SecureP@ss123',
+    )
+
+
+def make_valid_payload(**overrides):
+    payload = {
+        'originLat': 41.0825,
+        'originLng': 29.0510,
+        'destinationLat': 41.0865,
+        'destinationLng': 29.0445,
+    }
+    payload.update(overrides)
+    return payload
+
+
+@patch('apps.routing.services.requests.get', side_effect=mock_osrm_get)
+class CalculateRouteViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/api/routes/calculate'
+        self.reporter = make_reporter()
+
+    def test_route_returns_waypoints(self, mock_get):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIn('waypoints', data)
+        self.assertIsInstance(data['waypoints'], list)
+        self.assertTrue(len(data['waypoints']) >= 2)
+
+    def test_response_has_expected_fields(self, mock_get):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        for field in ('waypoints', 'distanceMeters', 'estimatedTimeSeconds',
+                      'avoidedObstaclesCount', 'warnings', 'isAccessible'):
+            self.assertIn(field, data)
+
+    def test_distance_and_time_from_osrm(self, mock_get):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        self.assertAlmostEqual(data['distanceMeters'], 620.5, places=0)
+        self.assertEqual(data['estimatedTimeSeconds'], 480)
+
+    def test_waypoints_are_lat_lng(self, mock_get):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        first_wp = data['waypoints'][0]
+        self.assertAlmostEqual(first_wp[0], 41.0825, places=3)
+        self.assertAlmostEqual(first_wp[1], 29.0510, places=3)
+
+    def test_no_obstacles_means_accessible(self, mock_get):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        self.assertTrue(data['isAccessible'])
+        self.assertEqual(data['avoidedObstaclesCount'], 0)
+
+    def test_verified_obstacle_near_route_generates_warning(self, mock_get):
+        Report.objects.create(
+            reporter=self.reporter,
+            title='Blocked path',
+            description='Construction blocking path',
+            category='BLOCKED_PATH',
+            context='OUTDOOR',
+            status='VERIFIED',
+            latitude=41.0835,
+            longitude=29.0505,
+        )
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        self.assertEqual(data['avoidedObstaclesCount'], 1)
+        self.assertFalse(data['isAccessible'])
+        self.assertTrue(any('Blocked path' in w for w in data['warnings']))
+
+    def test_unverified_obstacle_generates_warning(self, mock_get):
+        Report.objects.create(
+            reporter=self.reporter,
+            title='Possible pothole',
+            description='Looks like a pothole',
+            category='DAMAGED_SURFACE',
+            context='OUTDOOR',
+            status='UNVERIFIED',
+            latitude=41.0840,
+            longitude=29.0500,
+        )
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        self.assertTrue(any('Possible pothole' in w for w in data['warnings']))
+
+    def test_indoor_reports_excluded(self, mock_get):
+        Report.objects.create(
+            reporter=self.reporter,
+            title='Indoor obstacle',
+            description='Elevator broken',
+            category='OTHER',
+            context='INDOOR',
+            status='VERIFIED',
+            latitude=41.0835,
+            longitude=29.0505,
+        )
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        self.assertEqual(data['avoidedObstaclesCount'], 0)
+        self.assertTrue(data['isAccessible'])
+
+    def test_passive_reports_excluded(self, mock_get):
+        Report.objects.create(
+            reporter=self.reporter,
+            title='Passive obstacle',
+            description='Old report',
+            category='DAMAGED_SURFACE',
+            context='OUTDOOR',
+            status='PASSIVE',
+            latitude=41.0835,
+            longitude=29.0505,
+        )
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        self.assertEqual(data['avoidedObstaclesCount'], 0)
+
+    def test_guest_with_preferences(self, mock_get):
+        payload = make_valid_payload(preferences={
+            'avoidStairs': True,
+            'avoidSteepSlopes': True,
+            'maxSlopeGradient': 8.0,
+        })
+        response = self.client.post(self.url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_registered_user_uses_mobility_profile(self, mock_get):
         user = User.objects.create_user(
             email='routing@test.com',
             full_name='Route Tester',
@@ -49,205 +187,33 @@ class RouteTestMixin:
         )
         MobilityProfile.objects.create(
             user=user,
-            avoid_stairs=avoid_stairs,
-            avoid_steep_slopes=avoid_steep,
-            max_slope_gradient=max_slope,
+            avoid_stairs=True,
+            avoid_steep_slopes=False,
+            max_slope_gradient=None,
         )
-        return user
+        self.client.force_authenticate(user=user)
+        payload = make_valid_payload()
+        response = self.client.post(self.url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def create_reporter(self):
-        return User.objects.create_user(
-            email='reporter@test.com',
-            full_name='Reporter',
-            password='SecureP@ss123',
-        )
+    def test_missing_fields_returns_400(self, mock_get):
+        response = self.client.post(self.url, {'originLat': 41.0}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_accessible_without_auth(self, mock_get):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-class CalculateRouteViewTest(RouteTestMixin, TestCase):
+class CalculateRouteOSRMFailureTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.url = '/api/routes/calculate'
-        self.node_map = self.seed_graph()
-        self.reporter = self.create_reporter()
 
-        # South Campus Gate -> Computer Engineering (BIM) as a cross-campus route
-        self.valid_payload = {
-            'origin': {'lat': 41.0825, 'lng': 29.0510},
-            'destination': {'lat': 41.0865, 'lng': 29.0445},
-            'preferences': {
-                'avoidStairs': False,
-                'avoidSteepSlopes': False,
-                'maxSlopeGradient': None,
-            },
-        }
-
-    def test_route_returns_valid_polyline(self):
-        """Route between two campus points returns a valid encoded polyline."""
-        response = self.client.post(self.url, self.valid_payload, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertIn('polyline', data)
-        self.assertTrue(len(data['polyline']) > 0)
-        self.assertIn('totalDistanceMeters', data)
-        self.assertIn('estimatedTimeMinutes', data)
-        self.assertIn('routeId', data)
-        self.assertIsInstance(data['waypoints'], list)
-        self.assertTrue(len(data['waypoints']) >= 2)
-
-    def test_verified_obstacle_bypassed(self):
-        """A seeded VERIFIED obstacle is bypassed (route goes around it)."""
-        # Place a VERIFIED obstacle at the midpoint of the inter-campus path edge
-        # (South Campus Central Junction -> Inter-Campus Path Junction)
-        junction = self.node_map["South Campus Central Junction"]
-        inter = self.node_map["Inter-Campus Path Junction"]
-        mid_lat = (float(junction.latitude) + float(inter.latitude)) / 2
-        mid_lng = (float(junction.longitude) + float(inter.longitude)) / 2
-
-        Report.objects.create(
-            reporter=self.reporter,
-            title='Blocked path',
-            description='Construction blocking path',
-            category='BLOCKED_PATH',
-            status='VERIFIED',
-            latitude=mid_lat,
-            longitude=mid_lng,
-            is_indoor=False,
-        )
-
-        response = self.client.post(self.url, self.valid_payload, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertTrue(len(data['avoidedObstacles']) > 0)
-
-    def test_indoor_reports_excluded(self):
-        """INDOOR reports do not affect routing."""
-        junction = self.node_map["South Campus Central Junction"]
-        inter = self.node_map["Inter-Campus Path Junction"]
-        mid_lat = (float(junction.latitude) + float(inter.latitude)) / 2
-        mid_lng = (float(junction.longitude) + float(inter.longitude)) / 2
-
-        Report.objects.create(
-            reporter=self.reporter,
-            title='Indoor obstacle',
-            description='Elevator broken inside building',
-            category='OTHER',
-            status='VERIFIED',
-            latitude=mid_lat,
-            longitude=mid_lng,
-            is_indoor=True,
-        )
-
-        response = self.client.post(self.url, self.valid_payload, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertEqual(len(data['avoidedObstacles']), 0)
-
-    def test_passive_reports_excluded(self):
-        """PASSIVE reports do not affect routing."""
-        junction = self.node_map["South Campus Central Junction"]
-        inter = self.node_map["Inter-Campus Path Junction"]
-        mid_lat = (float(junction.latitude) + float(inter.latitude)) / 2
-        mid_lng = (float(junction.longitude) + float(inter.longitude)) / 2
-
-        Report.objects.create(
-            reporter=self.reporter,
-            title='Passive obstacle',
-            description='Old report',
-            category='DAMAGED_SURFACE',
-            status='PASSIVE',
-            latitude=mid_lat,
-            longitude=mid_lng,
-            is_indoor=False,
-        )
-
-        response = self.client.post(self.url, self.valid_payload, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertEqual(len(data['avoidedObstacles']), 0)
-
-    def test_registered_user_uses_mobility_profile(self):
-        """Registered user request without preferences uses saved MobilityProfile."""
-        user = self.create_user_with_profile(
-            avoid_stairs=True,
-            avoid_steep=False,
-            max_slope=None,
-        )
-        self.client.force_authenticate(user=user)
-
-        payload = {
-            'origin': {'lat': 41.0825, 'lng': 29.0510},
-            'destination': {'lat': 41.0865, 'lng': 29.0445},
-        }
-        response = self.client.post(self.url, payload, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertIn('polyline', data)
-        self.assertTrue(len(data['polyline']) > 0)
-
-    def test_guest_with_preferences(self):
-        """Guest request with preferences in body returns a valid route."""
-        payload = {
-            'origin': {'lat': 41.0825, 'lng': 29.0510},
-            'destination': {'lat': 41.0865, 'lng': 29.0445},
-            'preferences': {
-                'avoidStairs': True,
-                'avoidSteepSlopes': True,
-                'maxSlopeGradient': 8.0,
-            },
-        }
-        response = self.client.post(self.url, payload, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertIn('polyline', data)
-        self.assertIn('routeId', data)
-        self.assertIn('totalDistanceMeters', data)
-
-    def test_avoid_stairs(self):
-        """Route with avoidStairs=True does not use stair edges."""
-        # Albert Long Hall has a stairs edge from Library Crossroad
-        # Route to ALH with avoidStairs should use a different path or fail
-        payload = {
-            'origin': {'lat': 41.0838, 'lng': 29.0512},  # Near Library
-            'destination': {'lat': 41.0835, 'lng': 29.0505},  # ALH
-            'preferences': {
-                'avoidStairs': True,
-                'avoidSteepSlopes': False,
-            },
-        }
-        response = self.client.post(self.url, payload, format='json')
-        # With stairs avoided, ALH is only reachable via stairs from Library Crossroad
-        # So route should either find an alternative or return an error
-        # ALH only connects via stairs, so this should be a 400
-        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST])
-
-    def test_avoid_steep_slopes(self):
-        """Route with maxSlopeGradient filters out steep edges."""
-        # BTC has slope_grade=8.0, so with maxSlopeGradient=5.0 it should be excluded
-        payload = {
-            'origin': {'lat': 41.0855, 'lng': 29.0435},  # North Campus Gate
-            'destination': {'lat': 41.0868, 'lng': 29.0440},  # BTC
-            'preferences': {
-                'avoidStairs': True,
-                'avoidSteepSlopes': True,
-                'maxSlopeGradient': 5.0,
-            },
-        }
-        response = self.client.post(self.url, payload, format='json')
-        # BTC's only edge has slope 8.0 > 5.0 and is_stairs=True
-        # So route should fail
+    @patch('apps.routing.services.requests.get', side_effect=mock_osrm_failure)
+    def test_osrm_failure_returns_400(self, mock_get):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-
-class EncodePolylineTest(TestCase):
-    def test_encode_simple(self):
-        """Polyline encoding produces a non-empty string."""
-        coords = [(41.0837, 29.0510), (41.0842, 29.0498)]
-        result = encode_polyline(coords)
-        self.assertIsInstance(result, str)
-        self.assertTrue(len(result) > 0)
-
-    def test_encode_single_point(self):
-        coords = [(41.0837, 29.0510)]
-        result = encode_polyline(coords)
-        self.assertIsInstance(result, str)
-        self.assertTrue(len(result) > 0)
+        data = response.json()
+        self.assertIn('error', data)
+        self.assertEqual(data['error']['code'], 'ROUTE_ERROR')

@@ -1,3 +1,6 @@
+from django.db.models import Q
+
+from apps.map.models import CampusLocation
 from apps.reports.models import Report, ReportStatus, ReportContext
 
 
@@ -36,3 +39,9 @@ def get_obstacle_detail(report_id):
         )
     except Report.DoesNotExist:
         return None
+
+
+def search_campus_locations(query):
+    return CampusLocation.objects.filter(
+        Q(name__icontains=query) | Q(aliases__icontains=query)
+    ).order_by("name")

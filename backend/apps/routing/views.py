@@ -15,14 +15,10 @@ class CalculateRouteView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        origin = data['origin']
-        destination = data['destination']
-
         # Resolve preferences
         preferences = data.get('preferences')
 
         if preferences is None and request.user.is_authenticated:
-            # Use saved MobilityProfile for registered users
             profile = getattr(request.user, 'mobility_profile', None)
             if profile:
                 preferences = {
@@ -39,7 +35,13 @@ class CalculateRouteView(APIView):
             }
 
         try:
-            result = calculate_route(origin, destination, preferences)
+            result = calculate_route(
+                data['originLat'],
+                data['originLng'],
+                data['destinationLat'],
+                data['destinationLng'],
+                preferences,
+            )
         except ValueError as e:
             return Response(
                 {'error': {'code': 'ROUTE_ERROR', 'detail': str(e)}},
