@@ -72,14 +72,14 @@ def _call_osrm(waypoints_latlng):
 
 def _get_verified_obstacles():
     return list(
-        Report.objects.filter(status='VERIFIED', context='OUTDOOR')
+        Report.objects.filter(status='VERIFIED', is_indoor=False)
         .values('id', 'latitude', 'longitude', 'title', 'category')
     )
 
 
 def _get_unverified_obstacles():
     return list(
-        Report.objects.filter(status='UNVERIFIED', context='OUTDOOR')
+        Report.objects.filter(status='UNVERIFIED', is_indoor=False)
         .values('id', 'latitude', 'longitude', 'title')
     )
 
