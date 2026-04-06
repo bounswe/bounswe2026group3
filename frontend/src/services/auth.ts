@@ -94,3 +94,15 @@ export async function updateMe(payload: { fullName: string }) {
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
+
+export async function requestPasswordReset(email: string) {
+  const res = await fetch(`${API_BASE}/api/auth/password-reset/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+export async function confirmPasswordReset(token: string, password: string) {
+  const res = await fetch(`${API_BASE}/api/auth/password-reset/confirm/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, password }) });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
