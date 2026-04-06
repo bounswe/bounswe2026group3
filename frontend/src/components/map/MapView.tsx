@@ -207,8 +207,6 @@ export default function MapView() {
         </TouchableOpacity>
       </View>
 
-      {loading && <View style={s.loadingBar} />}
-
       <WebView
         ref={webViewRef}
         style={s.map}
@@ -224,6 +222,8 @@ export default function MapView() {
           </View>
         )}
       />
+
+      {loading && <View style={s.loadingBar} />}
     </View>
   );
 }
@@ -252,7 +252,10 @@ const s = StyleSheet.create({
   chipDotActive: { backgroundColor: COLORS.green500 },
   chipText: { fontSize: 12, fontWeight: '600', color: COLORS.gray500 },
   chipTextActive: { color: COLORS.green700 },
-  loadingBar: { height: 3, backgroundColor: COLORS.green500 },
+  loadingBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10,
+    height: 3, backgroundColor: COLORS.green500,
+  },
   map: { flex: 1 },
   mapLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
