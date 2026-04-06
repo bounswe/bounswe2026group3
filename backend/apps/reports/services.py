@@ -1,4 +1,5 @@
 import base64
+import math
 import uuid
 
 from django.conf import settings
@@ -6,6 +7,10 @@ from django.db import transaction
 from supabase import create_client
 
 from .models import Report, Photo, ReportStatus, ObstacleCategory
+
+EARTH_RADIUS_M = 6_371_000
+DUPLICATE_RADIUS_M = 20.0
+VERIFICATION_THRESHOLD = 100
 
 
 def _get_supabase_client():
@@ -88,11 +93,52 @@ def save_photos(report: Report, photos: list[str]) -> list[Photo]:
         raise
 
 
-def detect_duplicate(report: Report) -> Report | None:
-    """Return a similar existing report if found, else None."""
-    pass
+def _haversine(lat1, lng1, lat2, lng2):
+    """Return distance in meters between two lat/lng points."""
+    lat1, lng1, lat2, lng2 = map(math.radians, map(float, [lat1, lng1, lat2, lng2]))
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(dlng / 2) ** 2
+    )
+    return EARTH_RADIUS_M * 2 * math.asin(math.sqrt(a))
+
+
+def detect_duplicate(report: Report) -> dict | None:
+    """Return {reportId, distance} for the nearest open report within 20m, else None."""
+    open_statuses = [ReportStatus.UNVERIFIED, ReportStatus.VERIFIED]
+    nearby_reports = Report.objects.filter(
+        status__in=open_statuses,
+    ).exclude(id=report.id)
+
+    closest = None
+    closest_distance = None
+
+    for candidate in nearby_reports:
+        distance = _haversine(
+            report.latitude,
+            report.longitude,
+            candidate.latitude,
+            candidate.longitude,
+        )
+        if distance <= DUPLICATE_RADIUS_M:
+            if closest_distance is None or distance < closest_distance:
+                closest = candidate
+                closest_distance = distance
+
+    if closest is not None:
+        return {
+            "reportId": str(closest.id),
+            "distance": round(closest_distance, 2),
+        }
+    return None
 
 
 def auto_verify(report: Report) -> bool:
-    """Return True if report meets auto-verification criteria."""
-    pass
+    """Auto-verify if reporter's reputation_points >= VERIFICATION_THRESHOLD."""
+    if report.reporter.reputation_points >= VERIFICATION_THRESHOLD:
+        report.status = ReportStatus.VERIFIED
+        report.save(update_fields=["status"])
+        return True
+    return False

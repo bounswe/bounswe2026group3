@@ -19,9 +19,12 @@ class ReportCreateView(APIView):
         duplicate = detect_duplicate(report)
         verified = auto_verify(report)
 
-        response_data = ReportResponseSerializer(report, context={
-            "autoVerified": bool(verified),
-            "duplicateCandidate": str(duplicate.id) if duplicate else None,
-        }).data
+        response_data = ReportResponseSerializer(
+            report,
+            context={
+                "autoVerified": verified,
+                "duplicateCandidate": duplicate,
+            },
+        ).data
 
         return Response(response_data, status=status.HTTP_201_CREATED)

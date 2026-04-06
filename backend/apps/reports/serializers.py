@@ -23,8 +23,9 @@ class ReportSerializer(serializers.Serializer):
         max_length=3,
     )
 
+
 class ReportResponseSerializer(serializers.Serializer):
-    reportId = serializers.IntegerField(source="id")
+    reportId = serializers.UUIDField(source="id")
     status = serializers.CharField()
     autoVerified = serializers.SerializerMethodField()
     duplicateCandidate = serializers.SerializerMethodField()
