@@ -14,6 +14,22 @@ class MobilityProfileSerializer(serializers.Serializer):
         required=False,
         default='',
     )
+    avoidStairs = serializers.BooleanField(
+        source='avoid_stairs',
+        required=False,
+        default=False,
+    )
+    avoidSteepSlopes = serializers.BooleanField(
+        source='avoid_steep_slopes',
+        required=False,
+        default=False,
+    )
+    maxSlopeGradient = serializers.FloatField(
+        source='max_slope_gradient',
+        required=False,
+        default=None,
+        allow_null=True,
+    )
 
 
 class RegisterSerializer(serializers.Serializer):

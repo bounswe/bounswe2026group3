@@ -32,33 +32,34 @@ NODES = [
     {"name": "Engineering Quad Junction", "node_type": "INTERSECTION", "lat": 41.0866, "lng": 29.0450, "accessible": True},
 ]
 
-# (from_name, to_name, distance_m, accessible, surface, has_ramp, slope_grade)
+# (from_name, to_name, distance_m, accessible, surface, has_ramp, slope_grade, is_stairs)
 EDGES = [
     # South Campus internal paths
-    ("South Campus Main Gate", "South Campus Central Junction", 120, True, "concrete", True, 2.0),
-    ("South Campus Central Junction", "South Campus Main Building (BM)", 50, True, "concrete", False, 1.0),
-    ("South Campus Central Junction", "Library Crossroad", 30, True, "concrete", False, 0.5),
-    ("Library Crossroad", "Library (South)", 25, True, "concrete", True, 0.0),
-    ("Library Crossroad", "Albert Long Hall (ALH)", 40, True, "stone", False, 3.0),
-    ("South Campus Central Junction", "Student Center (South)", 70, True, "concrete", True, 1.5),
-    ("South Campus Central Junction", "Demir Demirgil Building (DD)", 60, True, "asphalt", False, 2.0),
-    ("Library Crossroad", "Faculty of Engineering (ETA)", 80, True, "asphalt", True, 2.5),
-    ("South Campus Central Junction", "Natuk Birkan Building (NB)", 90, True, "concrete", False, 1.0),
-    ("Faculty of Engineering (ETA)", "Science and Letters Faculty (FEF)", 45, True, "concrete", False, 1.5),
-    # South to North inter-campus path
-    ("South Campus Central Junction", "Inter-Campus Path Junction", 200, True, "asphalt", False, 5.0),
-    ("Bebek Gate", "Inter-Campus Path Junction", 150, True, "asphalt", True, 3.0),
-    ("Inter-Campus Path Junction", "North Campus Central Junction", 180, True, "asphalt", False, 4.0),
+    ("South Campus Main Gate", "South Campus Central Junction", 120, True, "concrete", True, 2.0, False),
+    ("South Campus Central Junction", "South Campus Main Building (BM)", 50, True, "concrete", False, 1.0, False),
+    ("South Campus Central Junction", "Library Crossroad", 30, True, "concrete", False, 0.5, False),
+    ("Library Crossroad", "Library (South)", 25, True, "concrete", True, 0.0, False),
+    ("Library Crossroad", "Albert Long Hall (ALH)", 40, True, "stone", False, 3.0, True),
+    ("South Campus Central Junction", "Student Center (South)", 70, True, "concrete", True, 1.5, False),
+    ("South Campus Central Junction", "Demir Demirgil Building (DD)", 60, True, "asphalt", False, 2.0, False),
+    ("Library Crossroad", "Faculty of Engineering (ETA)", 80, True, "asphalt", True, 2.5, False),
+    ("South Campus Central Junction", "Natuk Birkan Building (NB)", 90, True, "concrete", False, 1.0, False),
+    ("Faculty of Engineering (ETA)", "Science and Letters Faculty (FEF)", 45, True, "concrete", False, 1.5, False),
+    # South to North inter-campus paths
+    ("South Campus Central Junction", "Inter-Campus Path Junction", 200, True, "asphalt", False, 5.0, False),
+    ("Science and Letters Faculty (FEF)", "Bebek Gate", 120, True, "asphalt", False, 3.0, False),
+    ("Bebek Gate", "Inter-Campus Path Junction", 150, True, "asphalt", True, 3.0, False),
+    ("Inter-Campus Path Junction", "North Campus Central Junction", 180, True, "asphalt", False, 4.0, False),
     # North Campus internal paths
-    ("North Campus Main Gate", "North Campus Central Junction", 100, True, "concrete", True, 1.0),
-    ("North Campus Central Junction", "Engineering Quad Junction", 40, True, "concrete", False, 0.5),
-    ("Engineering Quad Junction", "Computer Engineering Building (BIM)", 35, True, "concrete", True, 1.0),
-    ("Engineering Quad Junction", "Electrical Engineering Building (EE)", 30, True, "concrete", False, 0.5),
-    ("North Campus Central Junction", "North Campus Cafeteria", 25, True, "concrete", True, 0.0),
-    ("North Campus Central Junction", "Science and Technology Center (BTC)", 55, False, "gravel", False, 8.0),
-    ("Engineering Quad Junction", "Civil Engineering Building", 60, True, "asphalt", True, 2.0),
-    ("Engineering Quad Junction", "Mechanical Engineering Building", 70, True, "asphalt", False, 3.0),
-    ("Civil Engineering Building", "Mechanical Engineering Building", 45, True, "concrete", False, 1.5),
+    ("North Campus Main Gate", "North Campus Central Junction", 100, True, "concrete", True, 1.0, False),
+    ("North Campus Central Junction", "Engineering Quad Junction", 40, True, "concrete", False, 0.5, False),
+    ("Engineering Quad Junction", "Computer Engineering Building (BIM)", 35, True, "concrete", True, 1.0, False),
+    ("Engineering Quad Junction", "Electrical Engineering Building (EE)", 30, True, "concrete", False, 0.5, False),
+    ("North Campus Central Junction", "North Campus Cafeteria", 25, True, "concrete", True, 0.0, False),
+    ("North Campus Central Junction", "Science and Technology Center (BTC)", 55, False, "gravel", False, 8.0, True),
+    ("Engineering Quad Junction", "Civil Engineering Building", 60, True, "asphalt", True, 2.0, False),
+    ("Engineering Quad Junction", "Mechanical Engineering Building", 70, True, "asphalt", False, 3.0, False),
+    ("Civil Engineering Building", "Mechanical Engineering Building", 45, True, "concrete", False, 1.5, False),
 ]
 
 
@@ -84,7 +85,7 @@ class Command(BaseCommand):
             self.stdout.write(f"  {status}: {node.name}")
 
         edges_created = 0
-        for from_name, to_name, distance, accessible, surface, ramp, slope in EDGES:
+        for from_name, to_name, distance, accessible, surface, ramp, slope, stairs in EDGES:
             from_node = node_map[from_name]
             to_node = node_map[to_name]
 
@@ -98,6 +99,7 @@ class Command(BaseCommand):
                         "surface_type": surface,
                         "has_ramp": ramp,
                         "slope_grade": slope,
+                        "is_stairs": stairs,
                     },
                 )
                 if created:
