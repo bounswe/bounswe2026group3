@@ -134,9 +134,7 @@ export default function MapView() {
     bbox: { north: number; south: number; east: number; west: number },
     passive: boolean,
   ) => {
-    setLoading(true);
     const data = await fetchObstacles(bbox, passive);
-    setLoading(false);
     pushObstacles(data, passive);
   }, [pushObstacles]);
 
@@ -223,7 +221,6 @@ export default function MapView() {
         )}
       />
 
-      {loading && <View style={s.loadingBar} />}
     </View>
   );
 }

@@ -236,9 +236,6 @@ export default function MapView() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Loading bar (top edge of map) ── */}
-      {loading && <View style={s.loadingBar} />}
-
       {/* ── Map ── */}
       <View style={s.mapWrapper}>
         <MapContainer
