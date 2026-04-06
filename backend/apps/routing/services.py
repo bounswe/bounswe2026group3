@@ -45,14 +45,14 @@ def _decode_polyline(encoded, precision=6):
 
 def _get_verified_obstacles():
     return list(
-        Report.objects.filter(status='VERIFIED', is_indoor=False)
+        Report.objects.filter(status='VERIFIED', context='OUTDOOR')
         .values('id', 'latitude', 'longitude', 'title', 'category')
     )
 
 
 def _get_unverified_obstacles():
     return list(
-        Report.objects.filter(status='UNVERIFIED', is_indoor=False)
+        Report.objects.filter(status='UNVERIFIED', context='OUTDOOR')
         .values('id', 'latitude', 'longitude', 'title')
     )
 
