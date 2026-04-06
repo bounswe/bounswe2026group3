@@ -13,18 +13,19 @@ class ObstacleListView(APIView):
     def get(self, request):
         bbox = request.query_params.get("bbox", "")
         include_passive = request.query_params.get("includePassive", "false").lower() == "true"
+        status_filter = request.query_params.get("status", None)
 
         try:
-            west, south, east, north = [float(x) for x in bbox.split(",")]
+            sw_lat, sw_lng, ne_lat, ne_lng = [float(x) for x in bbox.split(",")]
         except (ValueError, AttributeError):
             return Response(
-                {"detail": "bbox query param is required in format: west,south,east,north"},
+                {"detail": "bbox query param is required in format: sw_lat,sw_lng,ne_lat,ne_lng"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        obstacles = get_obstacles_in_bbox(west, south, east, north, include_passive)
+        obstacles = get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive, status_filter)
         serializer = ObstacleSerializer(obstacles, many=True)
-        return Response({"results": serializer.data})
+        return Response({"obstacles": serializer.data, "total": obstacles.count()})
 
 
 class ObstacleDetailView(APIView):
