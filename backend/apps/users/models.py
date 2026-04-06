@@ -97,6 +97,9 @@ class MobilityProfile(models.Model):
         default=MobilityAidType.NONE,
     )
     additional_needs = models.TextField(blank=True, default='')
+    avoid_stairs = models.BooleanField(default=False)
+    avoid_steep_slopes = models.BooleanField(default=False)
+    max_slope_gradient = models.FloatField(null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

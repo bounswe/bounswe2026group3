@@ -18,5 +18,6 @@ urlpatterns = [
     path('auth/', include('apps.users.urls')),# login, refresh, logout is in users/views.py
 
     path('api/auth/', include('apps.users.urls')),
+    path('api/routes/', include('apps.routing.urls')),
     path('api/reports/', include('apps.reports.urls')),
 ]

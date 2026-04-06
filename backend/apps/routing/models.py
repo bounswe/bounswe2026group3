@@ -32,6 +32,7 @@ class CampusEdge(models.Model):
     surface_type = models.CharField(max_length=50, default='asphalt')
     has_ramp = models.BooleanField(default=False)
     slope_grade = models.FloatField(default=0.0)
+    is_stairs = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -55,9 +56,12 @@ class Route(models.Model):
     end_latitude = models.DecimalField(max_digits=9, decimal_places=6)
     end_longitude = models.DecimalField(max_digits=9, decimal_places=6)
     waypoints = models.JSONField(default=list, blank=True)
+    polyline = models.TextField(blank=True, default='')
     distance_meters = models.FloatField()
     estimated_time_seconds = models.IntegerField()
     is_accessible = models.BooleanField(default=True)
+    avoided_obstacles = models.JSONField(default=list, blank=True)
+    warnings = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
