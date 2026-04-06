@@ -5,7 +5,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.users.serializers import LoginSerializer, TokenOutputSerializer, LogoutSerializer, RegisterSerializer
+from apps.users.serializers import (LoginSerializer, TokenOutputSerializer, LogoutSerializer,
+                                    RegisterSerializer, UserProfileSerializer, UserProfileUpdateSerializer)
 from apps.users.services import login_user, logout_user
 from apps.users.throttles import AuthRateThrottle
 
@@ -59,6 +60,20 @@ class LogoutView(APIView):
         logout_user(refresh_token=serializer.validated_data['refresh'])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        serializer = UserProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserProfileSerializer(user).data, status=status.HTTP_200_OK)
 
 
 # For permission testing purposes

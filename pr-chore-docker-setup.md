@@ -1,39 +1,36 @@
 ## Description
-Set up Docker environment, project configuration, and CI pipeline so the backend stack can be run locally with a single command.
 
-## Type of Change
-- [x] `chore` — maintenance / configuration
+Set up the mono-repo Docker environment, backend project configuration, Supabase database connection, and CI pipeline so every team member can run the full backend stack locally with a single command.
 
-## Changes
-- Added root `docker-compose.yml` — spins up the backend service; DB is Supabase (configured separately by Ali)
-- Added `backend/Dockerfile` — Python 3.12-slim image, installs dependencies, runs via gunicorn
-- Added `backend/entrypoint.sh` — runs `migrate` before starting the server
-- Added `backend/config/settings.py` — Django settings with PostgreSQL, JWT, and CORS support; all secrets read from environment variables via `python-decouple`
-- Added `backend/config/urls.py`, `backend/config/wsgi.py`, `backend/manage.py` — Django project entry points
-- Added `backend/requirements/base.txt`, `dev.txt`, `prod.txt` — pinned dependencies (Django, DRF, simplejwt, psycopg2, gunicorn, pytest, flake8, isort…)
-- Added `backend/pytest.ini` and `backend/conftest.py` — pytest configuration
-- Added root `.env.example` and `backend/.env.example` — templates with all required environment variables
-- Added `.gitignore` — covers Python, Django, Node, IDE and OS files
-- Added `.github/workflows/ci.yml` — GitHub Actions CI that checks Docker build on every PR to main
-- Updated `README.md` — step-by-step instructions to clone, configure env, and run with `docker compose up --build`
+## Due Time
 
-## How to Test
-1. Copy env file: `cp .env.example .env` and fill in Supabase credentials
-2. Run: `docker compose up --build`
-3. Backend should be available at `http://localhost:8000`
+Completed
 
-## Screenshots (if applicable)
-N/A — infrastructure only, no UI changes.
+## Acceptance Criteria
 
-## Checklist
-- [x] Commit messages follow `<type>(<scope>): <subject>` format
-- [ ] Branch is up to date with the target branch
-- [ ] No self-merge — at least 1 reviewer assigned
-- [ ] Conflicts resolved by PR author
+- `docker-compose.yml` added at root — spins up backend service; DB is Supabase
+- `backend/Dockerfile` added — Python 3.12-slim, dependencies installed, runs via gunicorn
+- `backend/entrypoint.sh` added — runs migrations before starting the server
+- Django settings configured with PostgreSQL, JWT, CORS, bcrypt — all secrets via environment variables (`python-decouple`)
+- `requirements/base.txt`, `dev.txt`, `prod.txt` added with pinned dependencies
+- Root `.env.example` and `backend/.env.example` added with all required environment variables
+- `.gitignore` added covering Python, Django, Node, IDE and OS files
+- GitHub Actions CI added — Docker build check on every PR to `main`
+- `README.md` updated with step-by-step build & run instructions
+- `AppConfig` defined for all apps (`authority`, `interactions`, `map`, `notifications`, `reports`, `routing`, `trust_scores`)
+- Supabase connection established and verified — `python manage.py migrate` runs successfully
+- `GET /health/` endpoint added — returns `{"status": "ok", "db": "connected"}` or 503 on failure
+- `users` table schema aligned: `status` → `account_status`, `trust_score` → `reputation_points`, `role` column added
+- `reports.id` changed from bigint to UUID; FK columns in `photos`, `interactions`, `status_changes` updated accordingly
+- `report-photos` public bucket created in Supabase Storage
 
-## Related Issue
-- Closes #1
+## Reviewer
+
+@AliAkkaya
 
 ## Notes
-- Database is Supabase — Ali will provide the connection credentials.
-- Lint and test CI jobs are left out for now; will be added once DB is set up.
+
+- DB is Supabase (Southeast Asia – Singapore). Connection goes through the pooler: `aws-1-ap-southeast-1.pooler.supabase.com`. Direct host (`db.*.supabase.co`) does not resolve — use pooler URL in `.env`.
+- Lint and test CI jobs are omitted for now; will be re-added once model/migration structure is stabilised across branches.
+- Migration files are in `.gitignore` (`backend/apps/*/migrations/`) — each developer runs `migrate` locally against Supabase.
+- `auth.users` (Supabase built-in) and `public.users` (Django) coexist in the DB — no conflict, Django only touches `public.users`.

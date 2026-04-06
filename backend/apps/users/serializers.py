@@ -98,3 +98,36 @@ class TokenOutputSerializer(serializers.Serializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    userId = serializers.UUIDField(source='id', read_only=True)
+    fullName = serializers.CharField(source='full_name', read_only=True)
+    birthDate = serializers.DateField(source='birth_date', read_only=True)
+    accountStatus = serializers.CharField(source='account_status', read_only=True)
+    reputationPoints = serializers.IntegerField(source='reputation_points', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+    mobilityProfile = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['userId', 'email', 'fullName', 'birthDate', 'role',
+                  'accountStatus', 'reputationPoints', 'createdAt', 'mobilityProfile']
+
+    def get_mobilityProfile(self, obj):
+        try:
+            profile = obj.mobility_profile
+        except MobilityProfile.DoesNotExist:
+            return None
+        return MobilityProfileSerializer(profile).data
+
+
+class UserProfileUpdateSerializer(serializers.Serializer):
+    fullName = serializers.CharField(source='full_name', max_length=255, required=False)
+    birthDate = serializers.DateField(source='birth_date', required=False)
+
+    def update(self, instance, validated_data):
+        instance.full_name = validated_data.get('full_name', instance.full_name)
+        instance.birth_date = validated_data.get('birth_date', instance.birth_date)
+        instance.save(update_fields=['full_name', 'birth_date'])
+        return instance
