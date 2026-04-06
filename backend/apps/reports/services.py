@@ -9,7 +9,7 @@ from .models import Report, Photo, ReportStatus, ObstacleCategory
 
 
 def _get_supabase_client():
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 def _upload_photo_to_supabase(client, base64_string: str) -> tuple[str, str]:
