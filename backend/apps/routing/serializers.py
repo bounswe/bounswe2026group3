@@ -1,11 +1,6 @@
 from rest_framework import serializers
 
 
-class CoordinateSerializer(serializers.Serializer):
-    lat = serializers.FloatField()
-    lng = serializers.FloatField()
-
-
 class PreferencesSerializer(serializers.Serializer):
     avoidStairs = serializers.BooleanField(required=False, default=False)
     avoidSteepSlopes = serializers.BooleanField(required=False, default=False)
@@ -13,16 +8,17 @@ class PreferencesSerializer(serializers.Serializer):
 
 
 class RouteRequestSerializer(serializers.Serializer):
-    origin = CoordinateSerializer()
-    destination = CoordinateSerializer()
+    originLat = serializers.FloatField()
+    originLng = serializers.FloatField()
+    destinationLat = serializers.FloatField()
+    destinationLng = serializers.FloatField()
     preferences = PreferencesSerializer(required=False)
 
 
 class RouteResponseSerializer(serializers.Serializer):
-    routeId = serializers.CharField()
-    polyline = serializers.CharField()
-    totalDistanceMeters = serializers.IntegerField()
-    estimatedTimeMinutes = serializers.IntegerField()
-    avoidedObstacles = serializers.ListField(child=serializers.CharField())
-    warnings = serializers.ListField(child=serializers.CharField())
     waypoints = serializers.ListField()
+    distanceMeters = serializers.FloatField()
+    estimatedTimeSeconds = serializers.FloatField()
+    avoidedObstaclesCount = serializers.IntegerField()
+    warnings = serializers.ListField(child=serializers.CharField())
+    isAccessible = serializers.BooleanField()

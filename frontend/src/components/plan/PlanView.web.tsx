@@ -59,9 +59,11 @@ function ClickHandler({
 function FitBounds({
   origin,
   dest,
+  route,
 }: {
   origin: [number, number] | null;
   dest: [number, number] | null;
+  route: [number, number][] | null;
 }) {
   const map = useMap();
   const prevBothSet = useRef(false);
@@ -74,6 +76,15 @@ function FitBounds({
     }
     prevBothSet.current = bothSet;
   }, [origin, dest]);
+
+  useEffect(() => {
+    if (route && route.length > 1) {
+      map.fitBounds(route as L.LatLngBoundsExpression, { padding: [60, 60] });
+      // Force Leaflet to recalculate tile coverage after bounds change
+      setTimeout(() => map.invalidateSize(), 100);
+    }
+  }, [route]);
+
   return null;
 }
 
@@ -290,7 +301,7 @@ export default function PlanView() {
           />
           <ZoomControl position="bottomright" />
           <ClickHandler active={!!pinMode} onPick={handleMapClick} />
-          <FitBounds origin={originLL} dest={destLL} />
+          <FitBounds origin={originLL} dest={destLL} route={route?.waypoints ?? null} />
 
           {originLL && <Marker position={originLL} icon={ORIGIN_ICON} />}
           {destLL   && <Marker position={destLL}   icon={DEST_ICON}   />}

@@ -276,3 +276,83 @@ class ObstacleDetailViewTest(TestCase):
         report = make_report(self.user, report_status=ReportStatus.VERIFIED)
         response = self.client.get(self._url(report.pk))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# View: GET /api/map/search?q=...
+# ---------------------------------------------------------------------------
+
+from apps.map.models import CampusLocation
+
+
+def make_location(name, aliases="", lat="41.0838", lng="29.0512", category="building"):
+    return CampusLocation.objects.create(
+        name=name, aliases=aliases, latitude=lat, longitude=lng, category=category,
+    )
+
+
+class SearchViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = "/api/map/search"
+
+    def test_empty_query_returns_400(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_blank_query_returns_400(self):
+        response = self.client.get(self.url, {"q": "   "})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_no_results_returns_empty_array(self):
+        response = self.client.get(self.url, {"q": "nonexistent"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["results"], [])
+
+    def test_search_by_name(self):
+        make_location("South Campus Library", aliases="Kütüphane,Library", category="library")
+        response = self.client.get(self.url, {"q": "Library"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["name"], "South Campus Library")
+
+    def test_search_by_turkish_alias(self):
+        make_location("South Campus Library", aliases="Kütüphane,Library", category="library")
+        response = self.client.get(self.url, {"q": "kütüphane"})
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["name"], "South Campus Library")
+
+    def test_search_is_case_insensitive(self):
+        make_location("Computer Engineering Building", aliases="BIM,Bilgisayar")
+        response = self.client.get(self.url, {"q": "bim"})
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+
+    def test_response_fields(self):
+        make_location("South Campus Library", aliases="Kütüphane", category="library")
+        response = self.client.get(self.url, {"q": "Library"})
+        item = response.json()["results"][0]
+        self.assertIn("name", item)
+        self.assertIn("location", item)
+        self.assertIn("category", item)
+        self.assertIn("lat", item["location"])
+        self.assertIn("lng", item["location"])
+
+    def test_partial_match(self):
+        make_location("Faculty of Engineering (ETA)", aliases="Mühendislik")
+        response = self.client.get(self.url, {"q": "eng"})
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+
+    def test_multiple_results(self):
+        make_location("Electrical Engineering Building", aliases="EE,Elektrik")
+        make_location("Civil Engineering Building", aliases="İnşaat")
+        response = self.client.get(self.url, {"q": "engineering"})
+        results = response.json()["results"]
+        self.assertEqual(len(results), 2)
+
+    def test_accessible_without_auth(self):
+        response = self.client.get(self.url, {"q": "test"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

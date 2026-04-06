@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
-from .selectors import get_obstacles_in_bbox, get_obstacle_detail
-from .serializers import ObstacleSerializer, ObstacleDetailSerializer
+from .selectors import get_obstacles_in_bbox, get_obstacle_detail, search_campus_locations
+from .serializers import ObstacleSerializer, ObstacleDetailSerializer, CampusLocationSerializer
 
 
 class ObstacleListView(APIView):
@@ -38,3 +38,19 @@ class ObstacleDetailView(APIView):
 
         serializer = ObstacleDetailSerializer(obstacle)
         return Response(serializer.data)
+
+
+class SearchView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        query = request.query_params.get("q", "").strip()
+        if not query:
+            return Response(
+                {"detail": "Query parameter 'q' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        results = search_campus_locations(query)
+        serializer = CampusLocationSerializer(results, many=True)
+        return Response({"results": serializer.data})
