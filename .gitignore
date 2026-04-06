@@ -15,7 +15,7 @@ dist/
 # Django
 backend/staticfiles/
 backend/db.sqlite3
-backend/apps/*/migrations/
+backend/apps/*/migrations/__pycache__/
 backend/supabase/.temp
 backend/.agents
 backend/.claude
