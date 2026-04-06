@@ -10,7 +10,7 @@ from rest_framework.permissions import AllowAny
 from .selectors import get_obstacles_in_bbox, get_obstacle_detail, search_campus_locations
 from .serializers import ObstacleSerializer, ObstacleDetailSerializer, CampusLocationSerializer
 
-OBSTACLES_CACHE_TTL = 30  # seconds
+OBSTACLES_CACHE_TTL = 5  # seconds
 
 
 class ObstacleListView(APIView):
