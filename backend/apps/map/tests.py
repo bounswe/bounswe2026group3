@@ -13,7 +13,7 @@ def make_user(email="user@test.com"):
     return User.objects.create_user(email=email, full_name="Test User", password="pass")
 
 
-def make_report(reporter, lat="41.083700", lng="29.051000", report_status=ReportStatus.VERIFIED, context=ReportContext.OUTDOOR, **kwargs):
+def make_report(reporter, lat="41.083700", lng="29.051000", report_status=ReportStatus.VERIFIED, is_indoor=False, **kwargs):
     defaults = dict(
         title="Broken Ramp",
         description="The ramp is broken.",
