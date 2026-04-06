@@ -1,11 +1,11 @@
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from apps.map.models import CampusLocation
-from apps.reports.models import Report, ReportStatus, ReportContext
+from apps.reports.models import InteractionType, Report, ReportContext, ReportStatus
 
 
 def get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive=False, status=None):
-    allowed_statuses = [ReportStatus.VERIFIED]
+    allowed_statuses = [ReportStatus.VERIFIED, ReportStatus.UNVERIFIED]
     if include_passive:
         allowed_statuses.append(ReportStatus.PASSIVE)
 
@@ -16,7 +16,12 @@ def get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive=False,
         latitude__lte=ne_lat,
         longitude__gte=sw_lng,
         longitude__lte=ne_lng,
-    ).prefetch_related("photos", "interactions").order_by("-created_at")
+    ).prefetch_related("photos").annotate(
+        upvote_count=Count(
+            "interactions",
+            filter=Q(interactions__interaction_type=InteractionType.UPVOTE),
+        )
+    ).order_by("-created_at")
 
     if status:
         qs = qs.filter(status=status)
@@ -43,5 +48,5 @@ def get_obstacle_detail(report_id):
 
 def search_campus_locations(query):
     return CampusLocation.objects.filter(
-        Q(name__icontains=query) | Q(aliases__icontains=query)
+        Q(name_icontains=query) | Q(aliases_icontains=query)
     ).order_by("name")
