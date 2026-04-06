@@ -7,6 +7,7 @@ import { fetchObstacles, searchLocations, type Obstacle } from '../../api/map';
 import { COLORS } from '../../constants/theme';
 
 const BOUN_CENTER = { lat: 41.0847, lng: 29.0503 };
+const DEFAULT_BBOX = { north: 41.095, south: 41.074, east: 29.065, west: 29.035 };
 
 // ── Static HTML — built once, never changes ─────────────────────────────────
 
@@ -122,6 +123,20 @@ export default function MapView() {
   showPassiveRef.current = showPassive;
 
   const source = useMemo(() => ({ html: MAP_HTML }), []);
+  const prefetchedRef = useRef<Obstacle[] | null>(null);
+
+  // Prefetch: start loading immediately on mount, before WebView even loads
+  useEffect(() => {
+    fetchObstacles(DEFAULT_BBOX, false).then((data) => {
+      prefetchedRef.current = data;
+      // If WebView is already ready, push immediately
+      if (readyRef.current) {
+        webViewRef.current?.injectJavaScript(
+          `window.updateObstacles(${JSON.stringify(JSON.stringify(data))}, false); true;`
+        );
+      }
+    });
+  }, []);
 
   const pushObstacles = useCallback((data: Obstacle[], passive: boolean) => {
     if (!readyRef.current) return;
@@ -149,13 +164,18 @@ export default function MapView() {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type === 'READY') {
         readyRef.current = true;
+        // Push prefetched data as soon as WebView is ready
+        if (prefetchedRef.current) {
+          pushObstacles(prefetchedRef.current, showPassiveRef.current);
+          prefetchedRef.current = null;
+        }
       } else if (msg.type === 'BOUNDS_CHANGE') {
         const bbox = { north: msg.north, south: msg.south, east: msg.east, west: msg.west };
         currentBoundsRef.current = bbox;
         loadObstacles(bbox, showPassiveRef.current);
       }
     } catch {}
-  }, [loadObstacles]);
+  }, [loadObstacles, pushObstacles]);
 
   const handleSearch = async () => {
     const q = query.trim();
