@@ -3,6 +3,7 @@
 *.env
 
 # Python
+**/__pycache__/
 __pycache__/
 *.pyc
 *.pyo
@@ -16,15 +17,22 @@ dist/
 backend/staticfiles/
 backend/db.sqlite3
 backend/apps/*/migrations/
-backend/supabase/.temp
+backend/supabase/
 backend/.agents
 backend/.claude
 backend/skills-lock.json
 backend/.qoder
+
+# Local notes/docs
+issue-*.md
+pr-*.md
+apidoc.docx
+
 # Node
 node_modules/
 .expo/
 dist/
+package-lock.json
 
 # IDE
 .idea/

@@ -13,4 +13,5 @@ urlpatterns = [
     path('/reports', views.ReportsView.as_view(), name='reports'),
     path('/authority/dashboard', views.AuthorityDashboardView.as_view(), name='authority-dashboard'),
     path('register/', views.RegisterView.as_view(), name='register'),
+    path('users/me', views.MeView.as_view(), name='users-me'),
 ]
