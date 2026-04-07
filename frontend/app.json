@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "backgroundColor": "#1A3C2A" } },
+    "android": { "adaptiveIcon": { "backgroundColor": "#1A3C2A" }, "package": "com.bounswe2026group3.accessmap" },
     "web": { "bundler": "metro", "output": "single" },
     "plugins": [
       "expo-router",
