@@ -504,7 +504,7 @@ export default function MapView() {
             /* ── Default: Search bar + passive chip ── */
             <View style={s.searchCard}>
               <View style={s.searchWrap}>
-                <Ionicons name="search-outline" size={16} color={COLORS.gray400} />
+                <Ionicons name="search-outline" size={22} color={COLORS.gray500} />
                 <TextInput
                   style={s.searchInput}
                   placeholder="Search for a location"
@@ -517,7 +517,7 @@ export default function MapView() {
                 />
                 {query.length > 0 ? (
                   <TouchableOpacity onPress={() => { setQuery(''); setSuggestions([]); setSelectedLocation(null); webViewRef.current?.injectJavaScript(`window.clearSearchPin(); true;`); }}>
-                    <Ionicons name="close-circle" size={20} color={COLORS.gray400} />
+                    <Ionicons name="close-circle" size={24} color={COLORS.gray400} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -770,37 +770,45 @@ const s = StyleSheet.create({
 
   // ── Search card (default state) ────────────────────────────────────────────
   searchCard: {
-    marginHorizontal: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
     backgroundColor: COLORS.white,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 26,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
   },
   searchWrap: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    height: 42, backgroundColor: COLORS.gray100, borderRadius: 10,
-    paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.gray200,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 10,
+    height: 52, 
+    paddingHorizontal: 16,
   },
-  searchInput: { flex: 1, height: 42, fontSize: 14, color: COLORS.gray800, paddingHorizontal: 4 },
+  searchInput: { 
+    flex: 1, 
+    height: 52, 
+    fontSize: 16, 
+    color: COLORS.gray800, 
+    fontWeight: '500' 
+  },
 
   // ── Suggestions dropdown ───────────────────────────────────────────────────
   suggestionsBox: {
-    marginTop: 6,
-    maxHeight: 180,
+    marginTop: 4,
+    maxHeight: 220,
     borderTopWidth: 1,
     borderTopColor: COLORS.gray200,
+    paddingTop: 4,
   },
   suggestionItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, paddingHorizontal: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.gray200,
   },
-  suggestionText: { flex: 1, fontSize: 14, color: COLORS.gray800 },
+  suggestionText: { flex: 1, fontSize: 15, color: COLORS.gray800 },
 
   // ── Plan Route chip ────────────────────────────────────────────────────────
   planRouteChip: {
