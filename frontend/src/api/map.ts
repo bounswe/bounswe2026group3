@@ -99,7 +99,7 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
   }
 }
 
-async function searchNominatim(q: string): Promise<SearchResult[]> {
+export async function searchNominatim(q: string): Promise<SearchResult[]> {
   const params = new URLSearchParams({
     q,
     format: 'json',
