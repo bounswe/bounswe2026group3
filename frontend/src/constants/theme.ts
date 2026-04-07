@@ -38,7 +38,7 @@ function getApiBase(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl) return envUrl;
 
-  if (Platform.OS === 'web') return 'http://localhost:8000';
+  if (Platform.OS === 'web') return 'https://bounswe2026group3-2.onrender.com';
 
   const host = Constants.expoConfig?.hostUri;
   if (host) {
