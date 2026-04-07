@@ -99,22 +99,53 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
   }
 }
 
+async function searchNominatim(q: string): Promise<SearchResult[]> {
+  const params = new URLSearchParams({
+    q,
+    format: 'json',
+    addressdetails: '1',
+    limit: '5',
+    'accept-language': 'en',
+    viewbox: '29.035,41.074,29.065,41.095',
+    bounded: '0',
+  });
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params}`,
+      { headers: { 'User-Agent': 'AccessMap/1.0' } },
+    );
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => []);
+    if (!Array.isArray(data)) return [];
+    return data.map((r: any) => ({
+      id: String(r.place_id ?? ''),
+      name: r.display_name ?? '',
+      latitude: parseFloat(r.lat),
+      longitude: parseFloat(r.lon),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function searchLocations(q: string): Promise<SearchResult[]> {
   const params = new URLSearchParams({ q });
   try {
     const res = await fetch(`${API_BASE}/api/map/search?${params}`, {
       headers: authHeaders(),
     });
-    if (!res.ok) return [];
-    const data = await res.json().catch(() => ({}));
-    const list = Array.isArray(data) ? data : (data.results ?? []);
-    return list.map((r: any) => ({
-      id: r.id ?? r.name ?? '',
-      name: r.name ?? '',
-      latitude: r.location?.lat ?? r.latitude,
-      longitude: r.location?.lng ?? r.longitude,
-    }));
-  } catch {
-    return [];
-  }
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const list = Array.isArray(data) ? data : (data.results ?? []);
+      const results = list.map((r: any) => ({
+        id: r.id ?? r.name ?? '',
+        name: r.name ?? '',
+        latitude: r.location?.lat ?? r.latitude,
+        longitude: r.location?.lng ?? r.longitude,
+      }));
+      if (results.length > 0) return results;
+    }
+  } catch {}
+  // Fallback to Nominatim when backend returns no results or fails
+  return searchNominatim(q);
 }
