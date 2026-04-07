@@ -131,3 +131,37 @@ class UserProfileUpdateSerializer(serializers.Serializer):
         instance.birth_date = validated_data.get('birth_date', instance.birth_date)
         instance.save(update_fields=['full_name', 'birth_date'])
         return instance
+
+
+class MobilityProfileInputSerializer(serializers.Serializer):
+    """Accepts the frontend's MobilityProfilePayload shape."""
+    mobilityAid = serializers.ChoiceField(
+        choices=MobilityAidType.choices,
+        source='mobility_aid_type',
+    )
+    avoidStairs = serializers.BooleanField(
+        source='avoid_stairs',
+        required=False,
+        default=False,
+    )
+    avoidSteepSlopes = serializers.BooleanField(
+        source='avoid_steep_slopes',
+        required=False,
+        default=False,
+    )
+    maxSlopeGradient = serializers.FloatField(
+        source='max_slope_gradient',
+        required=False,
+        default=None,
+        allow_null=True,
+    )
+
+
+class MobilityProfileOutputSerializer(serializers.Serializer):
+    """Returns the frontend's MobilityProfile shape."""
+    profileId = serializers.UUIDField(source='id')
+    mobilityAid = serializers.CharField(source='mobility_aid_type')
+    avoidStairs = serializers.BooleanField(source='avoid_stairs')
+    avoidSteepSlopes = serializers.BooleanField(source='avoid_steep_slopes')
+    maxSlopeGradient = serializers.FloatField(source='max_slope_gradient')
+    createdAt = serializers.DateTimeField(source='created_at')
