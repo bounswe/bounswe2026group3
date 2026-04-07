@@ -9,6 +9,11 @@ SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
+# Railway injects RAILWAY_PUBLIC_DOMAIN automatically — add it if present
+_railway_domain = config('RAILWAY_PUBLIC_DOMAIN', default='')
+if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_railway_domain)
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -73,7 +78,7 @@ DATABASES = {
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
         'OPTIONS': {
-            'sslmode': config('DB_SSLMODE', default='prefer'),
+            'sslmode': config('DB_SSLMODE', default='require'),
         },
     }
 }
