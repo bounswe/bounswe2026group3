@@ -9,7 +9,7 @@
     "newArchEnabled": true,
     "ios": { "supportsTablet": true },
     "android": { "adaptiveIcon": { "backgroundColor": "#1A3C2A" } },
-    "web": { "bundler": "metro", "output": "single" },
+    "web": { "bundler": "metro", "output": "static" },
     "plugins": [
       "expo-router",
       "expo-secure-store",
