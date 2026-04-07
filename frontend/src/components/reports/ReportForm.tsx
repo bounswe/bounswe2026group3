@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import { useLocation } from '../../hooks/useLocation';
 import PhotoPicker, { type PhotoEntry } from './PhotoPicker';
 import { submitReport } from '../../api/reports';
+import { searchNominatim, type SearchResult } from '../../api/map';
 import { parseDRFError } from '../../services/auth';
+import LocationPicker from './LocationPicker';
 import type { ObstacleCategory, ReportContext, SubmitReportResponse } from '../../types/report';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -19,6 +21,8 @@ const CATEGORIES: Array<{ value: ObstacleCategory; label: string; icon: IoniconN
   { value: 'OTHER',             label: 'Other',           icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
+type LocationMode = 'current' | 'pick';
+
 interface Props { onSuccess: (r: SubmitReportResponse) => void; }
 
 export default function ReportForm({ onSuccess }: Props) {
@@ -31,18 +35,77 @@ export default function ReportForm({ onSuccess }: Props) {
   const [photoError, setPhotoError] = useState('');
   const [apiError, setApiError]     = useState('');
 
+  // Location mode
+  const [locationMode, setLocationMode] = useState<LocationMode>('current');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedArea, setSelectedArea] = useState<SearchResult | null>(null);
+  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   function addPhoto(p: PhotoEntry)   { setPhotos(prev => [...prev, p]); setPhotoError(''); }
   function removePhoto(i: number)    { setPhotos(prev => prev.filter((_, idx) => idx !== i)); }
   function toggleCategory(v: ObstacleCategory) { setCategory(prev => prev === v ? null : v); }
 
+  // Debounced search
+  const handleSearchInput = useCallback((text: string) => {
+    setSearchQuery(text);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (text.trim().length < 2) { setSearchResults([]); return; }
+    searchTimerRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      const results = await searchNominatim(text.trim());
+      setSearchResults(results);
+      setSearchLoading(false);
+    }, 400);
+  }, []);
+
+  const handleSelectArea = useCallback((result: SearchResult) => {
+    setSelectedArea(result);
+    setPickedLocation(null);
+    setSearchResults([]);
+    setSearchQuery('');
+  }, []);
+
+  const handleResetPick = useCallback(() => {
+    setSelectedArea(null);
+    setPickedLocation(null);
+    setSearchQuery('');
+    setSearchResults([]);
+  }, []);
+
+  const handleSwitchMode = useCallback((mode: LocationMode) => {
+    setLocationMode(mode);
+    if (mode === 'current') {
+      setSelectedArea(null);
+      setPickedLocation(null);
+      setSearchQuery('');
+      setSearchResults([]);
+    }
+  }, []);
+
+  const handleLocationPick = useCallback((loc: { lat: number; lng: number }) => {
+    setPickedLocation(loc);
+  }, []);
+
+  // Determine final location for submission
+  const finalLocation = locationMode === 'current' ? loc.location : pickedLocation;
+
   async function handleSubmit() {
     setApiError('');
     if (photos.length === 0) { setPhotoError('At least one photo is required.'); return; }
-    if (!loc.location) { setApiError('Location not available yet — please wait or tap Retry.'); return; }
+    if (!finalLocation) {
+      setApiError(locationMode === 'current'
+        ? 'Location not available yet — please wait or tap Retry.'
+        : 'Please select a location on the map.');
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await submitReport({
-        location: loc.location,
+        location: finalLocation,
         context,
         category,
         description: description.trim(),
@@ -60,7 +123,7 @@ export default function ReportForm({ onSuccess }: Props) {
     }
   }
 
-  const submitDisabled = submitting || loc.loading;
+  const submitDisabled = submitting || (locationMode === 'current' && loc.loading) || (locationMode === 'pick' && !pickedLocation);
 
   return (
     <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -72,39 +135,118 @@ export default function ReportForm({ onSuccess }: Props) {
             <Ionicons name="location-outline" size={18} color={COLORS.green600} />
             <Text style={s.cardTitle}>Location</Text>
           </View>
-          {loc.loading && (
-            <View style={s.locRow}>
-              <ActivityIndicator size="small" color={COLORS.green600} />
-              <Text style={s.locText}>Detecting your location…</Text>
+
+          {/* Mode toggle */}
+          <View style={s.toggleRow}>
+            <TouchableOpacity
+              style={[s.pill, locationMode === 'current' && s.pillActive]}
+              onPress={() => handleSwitchMode('current')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="navigate-outline" size={14} color={locationMode === 'current' ? COLORS.white : COLORS.gray500} />
+              <Text style={[s.pillLabel, locationMode === 'current' && s.pillLabelActive]}>Current Location</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.pill, locationMode === 'pick' && s.pillActive]}
+              onPress={() => handleSwitchMode('pick')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="map-outline" size={14} color={locationMode === 'pick' ? COLORS.white : COLORS.gray500} />
+              <Text style={[s.pillLabel, locationMode === 'pick' && s.pillLabelActive]}>Choose on Map</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Current location display */}
+          {locationMode === 'current' && (
+            <View style={{ marginTop: 12 }}>
+              {loc.loading && (
+                <View style={s.locRow}>
+                  <ActivityIndicator size="small" color={COLORS.green600} />
+                  <Text style={s.locText}>Detecting your location…</Text>
+                </View>
+              )}
+              {!loc.loading && loc.location && (
+                <View style={s.locRow}>
+                  <Ionicons name="checkmark-circle" size={16} color={COLORS.green600} />
+                  <Text style={s.locText} numberOfLines={1}>
+                    {loc.location.lat.toFixed(5)}, {loc.location.lng.toFixed(5)}
+                  </Text>
+                  <TouchableOpacity onPress={loc.refetch}>
+                    <Text style={s.locAction}>Refresh</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {!loc.loading && loc.permissionDenied && (
+                <View style={s.locRow}>
+                  <Ionicons name="warning-outline" size={16} color={COLORS.orange500} />
+                  <Text style={[s.locText, s.locWarn, { flex: 1 }]}>Location access denied.</Text>
+                  <TouchableOpacity onPress={() => Linking.openSettings()}>
+                    <Text style={s.locAction}>Settings</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {!loc.loading && !loc.permissionDenied && !!loc.error && (
+                <View style={s.locRow}>
+                  <Ionicons name="alert-circle-outline" size={16} color={COLORS.red500} />
+                  <Text style={[s.locText, s.locErr, { flex: 1 }]} numberOfLines={2}>{loc.error}</Text>
+                  <TouchableOpacity onPress={loc.refetch}>
+                    <Text style={s.locAction}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
-          {!loc.loading && loc.location && (
-            <View style={s.locRow}>
-              <Ionicons name="checkmark-circle" size={16} color={COLORS.green600} />
-              <Text style={s.locText} numberOfLines={1}>
-                {loc.location.lat.toFixed(5)}, {loc.location.lng.toFixed(5)}
-              </Text>
-              <TouchableOpacity onPress={loc.refetch}>
-                <Text style={s.locAction}>Refresh</Text>
-              </TouchableOpacity>
+
+          {/* Pick location - Search */}
+          {locationMode === 'pick' && !selectedArea && (
+            <View style={{ marginTop: 12 }}>
+              <View style={s.searchRow}>
+                <Ionicons name="search" size={16} color={COLORS.gray400} />
+                <TextInput
+                  style={s.searchInput}
+                  placeholder="Search neighborhood, street, building…"
+                  placeholderTextColor={COLORS.gray400}
+                  value={searchQuery}
+                  onChangeText={handleSearchInput}
+                  autoFocus
+                />
+                {searchLoading && <ActivityIndicator size="small" color={COLORS.green600} />}
+              </View>
+              {searchResults.length > 0 && (
+                <View style={s.resultsList}>
+                  {searchResults.map((result) => (
+                    <TouchableOpacity
+                      key={result.id}
+                      style={s.resultItem}
+                      onPress={() => handleSelectArea(result)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="location" size={16} color={COLORS.green600} />
+                      <Text style={s.resultText} numberOfLines={2}>{result.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {searchQuery.length >= 2 && !searchLoading && searchResults.length === 0 && (
+                <Text style={s.noResults}>No results found. Try a different search.</Text>
+              )}
             </View>
           )}
-          {!loc.loading && loc.permissionDenied && (
-            <View style={s.locRow}>
-              <Ionicons name="warning-outline" size={16} color={COLORS.orange500} />
-              <Text style={[s.locText, s.locWarn, { flex: 1 }]}>Location access denied.</Text>
-              <TouchableOpacity onPress={() => Linking.openSettings()}>
-                <Text style={s.locAction}>Settings</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {!loc.loading && !loc.permissionDenied && !!loc.error && (
-            <View style={s.locRow}>
-              <Ionicons name="alert-circle-outline" size={16} color={COLORS.red500} />
-              <Text style={[s.locText, s.locErr, { flex: 1 }]} numberOfLines={2}>{loc.error}</Text>
-              <TouchableOpacity onPress={loc.refetch}>
-                <Text style={s.locAction}>Retry</Text>
-              </TouchableOpacity>
+
+          {/* Pick location - Map with pin */}
+          {locationMode === 'pick' && selectedArea && (
+            <View style={{ marginTop: 12 }}>
+              <View style={s.selectedAreaRow}>
+                <Ionicons name="location" size={16} color={COLORS.green600} />
+                <Text style={s.selectedAreaText} numberOfLines={2}>{selectedArea.name}</Text>
+                <TouchableOpacity onPress={handleResetPick}>
+                  <Ionicons name="close-circle" size={20} color={COLORS.gray400} />
+                </TouchableOpacity>
+              </View>
+              <LocationPicker
+                center={{ lat: selectedArea.latitude, lng: selectedArea.longitude }}
+                onLocationPick={handleLocationPick}
+              />
             </View>
           )}
         </View>
@@ -256,4 +398,14 @@ const s = StyleSheet.create({
   submitBtnOff:    { backgroundColor: COLORS.gray300 },
   submitRow:       { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
   submitLabel:     { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  // Search
+  searchRow:       { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, borderWidth: 1.5, borderColor: COLORS.gray300, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  searchInput:     { flex: 1, fontSize: 14, color: COLORS.gray900, paddingVertical: 0 },
+  resultsList:     { marginTop: 8, borderWidth: 1, borderColor: COLORS.gray200, borderRadius: 10, overflow: 'hidden' as const },
+  resultItem:      { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.gray200 },
+  resultText:      { fontSize: 13, color: COLORS.gray700, flex: 1 },
+  noResults:       { marginTop: 8, fontSize: 13, color: COLORS.gray400, textAlign: 'center' as const },
+  // Selected area
+  selectedAreaRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, backgroundColor: COLORS.green50, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: COLORS.green200 },
+  selectedAreaText:{ fontSize: 13, color: COLORS.green700, fontWeight: '600', flex: 1 },
 });
