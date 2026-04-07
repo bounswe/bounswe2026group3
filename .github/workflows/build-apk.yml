@@ -1,0 +1,50 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [created]
+
+jobs:
+  build-apk:
+    name: Build APK via EAS
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install --legacy-peer-deps
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK on EAS cloud
+        working-directory: frontend
+        run: eas build --platform android --profile preview --non-interactive
+
+      - name: Download APK from EAS
+        working-directory: frontend
+        run: eas build:list --platform android --status finished --limit 1 --json | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); const url=d[0].artifacts.buildUrl; console.log(url)" | xargs curl -L -o accessmap.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessmap.apk
+          path: frontend/accessmap.apk
+
+      - name: Upload APK to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: frontend/accessmap.apk
