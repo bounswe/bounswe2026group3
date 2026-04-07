@@ -1,4 +1,15 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: bounswe2026
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     command: python manage.py runserver 0.0.0.0:8000
@@ -8,3 +19,8 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
