@@ -174,6 +174,11 @@ const MAP_HTML = `<!DOCTYPE html>
     if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
   };
 
+  window.clearMarkers = function() {
+    if (originMarker) { map.removeLayer(originMarker); originMarker = null; }
+    if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
+  };
+
   window.fitBothPoints = function() {
     if (originMarker && destMarker) {
       var group = L.featureGroup([originMarker, destMarker]);
@@ -342,10 +347,8 @@ export default function MapView() {
   // ── Route planning handlers ──────────────────────────────────────────────
 
   const clearRouteOnChange = () => {
-    if (route) {
-      setRoute(null);
-      webViewRef.current?.injectJavaScript(`window.clearRoute(); true;`);
-    }
+    setRoute(null);
+    webViewRef.current?.injectJavaScript(`window.clearRoute(); true;`);
   };
 
   const useCurrentLocation = async () => {
@@ -418,7 +421,7 @@ export default function MapView() {
     setRoute(null);
     setRouteError(null);
     setPinMode(null);
-    webViewRef.current?.injectJavaScript(`window.clearRoute(); true;`);
+    webViewRef.current?.injectJavaScript(`window.clearRoute(); window.clearMarkers(); true;`);
     // Re-show search pin if a location was selected
     if (selectedLocation) {
       webViewRef.current?.injectJavaScript(
