@@ -214,7 +214,7 @@ export default function PlanView() {
           >
             <Ionicons
               name="location-outline"
-              size={18}
+              size={20}
               color={pinMode === 'origin' ? COLORS.green700 : COLORS.gray400}
             />
           </TouchableOpacity>
@@ -242,7 +242,7 @@ export default function PlanView() {
           >
             <Ionicons
               name="location-outline"
-              size={18}
+              size={20}
               color={pinMode === 'dest' ? COLORS.red500 : COLORS.gray400}
             />
           </TouchableOpacity>
@@ -427,22 +427,22 @@ const s = StyleSheet.create({
   // Inputs card
   inputsCard: {
     backgroundColor: COLORS.white,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.gray200,
-    gap: 4,
+    gap: 6,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    height: 48,
     gap: 10,
   },
   dot: {
-    width: 11,
-    height: 11,
+    width: 12,
+    height: 12,
     borderRadius: 6,
     borderWidth: 2.5,
     borderColor: COLORS.white,
@@ -454,24 +454,25 @@ const s = StyleSheet.create({
   },
   dotOrigin: { backgroundColor: COLORS.green700 },
   dotDest:   { backgroundColor: COLORS.red500   },
-  connector: { paddingLeft: 4, height: 10, justifyContent: 'center' },
-  connectorLine: { width: 1, height: 10, backgroundColor: COLORS.gray300, marginLeft: 4 },
+  connector: { paddingLeft: 5, height: 12, justifyContent: 'center' },
+  connectorLine: { width: 1.5, height: 12, backgroundColor: COLORS.gray300, marginLeft: 4 },
   input: {
     flex: 1,
-    height: 40,
+    height: 44,
     backgroundColor: COLORS.gray100,
-    borderRadius: 9,
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingLeft: 14,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.gray800,
     borderWidth: 1,
     borderColor: COLORS.gray200,
+    outlineStyle: 'none',
   },
   pinBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.gray200,
     alignItems: 'center',
@@ -481,9 +482,9 @@ const s = StyleSheet.create({
   },
   pinBtnActive: { borderColor: COLORS.green500, backgroundColor: COLORS.green50 },
   routeBtn: {
-    marginTop: 8,
-    height: 44,
-    borderRadius: 11,
+    marginTop: 10,
+    height: 46,
+    borderRadius: 12,
     backgroundColor: COLORS.green700,
     flexDirection: 'row',
     alignItems: 'center',

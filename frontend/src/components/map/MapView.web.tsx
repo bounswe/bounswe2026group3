@@ -495,7 +495,7 @@ export default function MapView() {
             /* ── Default: Search bar ── */
             <View style={s.searchCard}>
               <View style={s.searchWrap}>
-                <Ionicons name="search-outline" size={16} color={COLORS.gray400} />
+                <Ionicons name="search-outline" size={18} color={COLORS.gray400} />
                 <TextInput
                   style={s.searchInput}
                   placeholder="Search for a location"
@@ -585,7 +585,7 @@ export default function MapView() {
                   style={[s.pinBtn, pinMode === 'origin' && s.pinBtnActive]}
                   onPress={() => setPinMode(pinMode === 'origin' ? null : 'origin')}
                 >
-                  <Ionicons name="location-outline" size={18}
+                  <Ionicons name="location-outline" size={20}
                     color={pinMode === 'origin' ? COLORS.green700 : COLORS.gray400} />
                 </TouchableOpacity>
               </View>
@@ -635,7 +635,7 @@ export default function MapView() {
                   style={[s.pinBtn, pinMode === 'dest' && s.pinBtnActive]}
                   onPress={() => setPinMode(pinMode === 'dest' ? null : 'dest')}
                 >
-                  <Ionicons name="location-outline" size={18}
+                  <Ionicons name="location-outline" size={20}
                     color={pinMode === 'dest' ? COLORS.red500 : COLORS.gray400} />
                 </TouchableOpacity>
               </View>
@@ -762,23 +762,23 @@ const s = StyleSheet.create({
 
   // ── Search card ──────────────────────────────────────────────────────────
   searchCard: {
-    marginHorizontal: 12,
+    marginHorizontal: 14,
     backgroundColor: COLORS.white,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
   },
   searchWrap: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    height: 42, backgroundColor: COLORS.gray100, borderRadius: 10,
-    paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.gray200,
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
+    height: 48, backgroundColor: COLORS.gray100, borderRadius: 12,
+    paddingHorizontal: 14, borderWidth: 1, borderColor: COLORS.gray200,
   },
-  searchInput: { flex: 1, height: 42, fontSize: 14, color: COLORS.gray800, paddingHorizontal: 4 },
+  searchInput: { flex: 1, height: 48, fontSize: 15, color: COLORS.gray800, paddingHorizontal: 4, outlineStyle: 'none' },
 
   // ── Suggestions ──────────────────────────────────────────────────────────
   suggestionsBox: {
@@ -804,47 +804,48 @@ const s = StyleSheet.create({
   routeCard: {
     marginHorizontal: 12,
     backgroundColor: COLORS.white,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 6,
     elevation: 4,
-    gap: 4,
+    gap: 6,
   },
   routeCardHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 4,
   },
-  routeCardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray800 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', height: 44, gap: 10 },
+  routeCardTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray800 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', height: 48, gap: 10 },
   dot: {
-    width: 11, height: 11, borderRadius: 6, borderWidth: 2.5,
+    width: 12, height: 12, borderRadius: 6, borderWidth: 2.5,
     borderColor: COLORS.white, flexShrink: 0,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 2, elevation: 2,
   },
   dotOrigin: { backgroundColor: COLORS.green700 },
   dotDest: { backgroundColor: COLORS.red500 },
-  connector: { paddingLeft: 4, height: 10, justifyContent: 'center' },
-  connectorLine: { width: 1, height: 10, backgroundColor: COLORS.gray300, marginLeft: 4 },
+  connector: { paddingLeft: 5, height: 12, justifyContent: 'center' },
+  connectorLine: { width: 1.5, height: 12, backgroundColor: COLORS.gray300, marginLeft: 4 },
   input: {
-    flex: 1, height: 40, backgroundColor: COLORS.gray100,
-    borderRadius: 9, paddingHorizontal: 12, fontSize: 14,
+    flex: 1, height: 44, backgroundColor: COLORS.gray100,
+    borderRadius: 10, paddingHorizontal: 14, fontSize: 15,
     color: COLORS.gray800, borderWidth: 1, borderColor: COLORS.gray200,
+    outlineStyle: 'none',
   },
   pinBtn: {
-    width: 36, height: 36, borderRadius: 9, borderWidth: 1,
+    width: 44, height: 44, borderRadius: 10, borderWidth: 1,
     borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center',
     backgroundColor: COLORS.white, flexShrink: 0,
   },
   pinBtnActive: { borderColor: COLORS.green500, backgroundColor: COLORS.green50 },
   currentLocBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingLeft: 22, paddingVertical: 2,
+    paddingLeft: 24, paddingVertical: 4,
   },
-  currentLocText: { fontSize: 13, color: COLORS.blue600, fontWeight: '500' },
+  currentLocText: { fontSize: 13, color: COLORS.blue600, fontWeight: '600' },
   fieldSuggestions: {
     position: 'absolute', top: 42, left: 0, right: 0, zIndex: 100,
     backgroundColor: COLORS.white, borderRadius: 8, maxHeight: 150,
@@ -853,7 +854,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
   },
   routeBtn: {
-    marginTop: 8, height: 44, borderRadius: 11, backgroundColor: COLORS.green700,
+    marginTop: 10, height: 46, borderRadius: 12, backgroundColor: COLORS.green700,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   routeBtnDisabled: { backgroundColor: COLORS.gray300 },
