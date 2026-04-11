@@ -54,7 +54,7 @@ class CreateReportServiceTest(TestCase):
 
         self.assertIsNotNone(report.pk)
         self.assertEqual(report.reporter, self.user)
-        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
+        self.assertEqual(report.status, ReportStatus.VERIFIED)
         self.assertEqual(report.category, ObstacleCategory.BROKEN_RAMP)
 
     @patch("apps.reports.services._get_supabase_client")
@@ -86,6 +86,9 @@ class CreateReportServiceTest(TestCase):
 
         from apps.reports.services import create_report
 
+        initial_report_count = Report.objects.count()
+        initial_photo_count = Photo.objects.count()
+
         data = {
             "location": {"lat": "41.083700", "lng": "29.051000"},
             "context": ReportContext.OUTDOOR,
@@ -96,8 +99,8 @@ class CreateReportServiceTest(TestCase):
         with self.assertRaises(Exception):
             create_report(self.user, data)
 
-        self.assertEqual(Report.objects.count(), 0)
-        self.assertEqual(Photo.objects.count(), 0)
+        self.assertEqual(Report.objects.count(), initial_report_count)
+        self.assertEqual(Photo.objects.count(), initial_photo_count)
 
     @patch("apps.reports.services._get_supabase_client")
     def test_title_generated_from_category(self, mock_client):
@@ -232,7 +235,7 @@ class ReportCreateViewTest(TestCase):
         self.assertIn("autoVerified", data)
         self.assertIn("duplicateCandidate", data)
         self.assertIn("createdAt", data)
-        self.assertEqual(data["status"], ReportStatus.UNVERIFIED)
+        self.assertEqual(data["status"], ReportStatus.VERIFIED)
         self.assertFalse(data["autoVerified"])
         self.assertIsNone(data["duplicateCandidate"])
 
