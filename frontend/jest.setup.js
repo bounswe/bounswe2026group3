@@ -1,3 +1,9 @@
+// Mock react-native-webview which requires a native binary not available in Jest
+jest.mock('react-native-webview', () => {
+  const { View } = require('react-native');
+  return { default: View, WebView: View };
+});
+
 // Suppress the act(...) warnings produced by TouchableOpacity's Animated internals
 // and async state updates in hooks. These are a known RNTL v12 + React 18 interaction
 // and do not affect test correctness. See:
