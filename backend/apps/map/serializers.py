@@ -28,7 +28,7 @@ class ObstacleSerializer(serializers.Serializer):
         return obj.context == 'INDOOR'
 
     def get_upvoteCount(self, obj):
-        return getattr(obj, 'upvote_count', 0)
+        return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.UPVOTE)
 
     def get_thumbnailUrl(self, obj):
         first_photo = next(iter(obj.photos.all()), None)
@@ -77,4 +77,6 @@ class CampusLocationSerializer(serializers.Serializer):
     category = serializers.CharField()
 
     def get_location(self, obj):
+        if isinstance(obj, dict):
+            return {"lat": float(obj["latitude"]), "lng": float(obj["longitude"])}
         return {"lat": float(obj.latitude), "lng": float(obj.longitude)}
