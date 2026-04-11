@@ -57,7 +57,13 @@
       "default",
       ["jest-junit", { "outputDirectory": ".", "outputName": "report.xml" }],
       ["jest-html-reporter", { "outputPath": "report.html", "pageTitle": "Frontend Test Report" }]
-    ]
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/__tests__/**",
+      "!src/**/*.d.ts"
+    ],
+    "coverageReporters": ["text", "cobertura"]
   },
   "private": true
 }

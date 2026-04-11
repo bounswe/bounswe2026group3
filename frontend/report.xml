@@ -1,107 +1,107 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="46" failures="0" errors="0" time="2.726">
-  <testsuite name="submitReport (mock mode)" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:22:54" time="0.949" tests="7">
-    <testcase classname="submitReport (mock mode) resolves with ok:true and HTTP 201" name="submitReport (mock mode) resolves with ok:true and HTTP 201" time="0.003">
+<testsuites name="jest tests" tests="46" failures="0" errors="0" time="8.038">
+  <testsuite name="useLocation" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:42:37" time="2.131" tests="5">
+    <testcase classname="useLocation starts in loading state" name="useLocation starts in loading state" time="0.012">
+    </testcase>
+    <testcase classname="useLocation resolves location when permission is granted" name="useLocation resolves location when permission is granted" time="0.056">
+    </testcase>
+    <testcase classname="useLocation sets permissionDenied when permission is not granted" name="useLocation sets permissionDenied when permission is not granted" time="0.059">
+    </testcase>
+    <testcase classname="useLocation sets error string when getCurrentPositionAsync rejects" name="useLocation sets error string when getCurrentPositionAsync rejects" time="0.062">
+    </testcase>
+    <testcase classname="useLocation exposes a refetch function that updates location" name="useLocation exposes a refetch function that updates location" time="0.111">
+    </testcase>
+  </testsuite>
+  <testsuite name="getMobilityProfile" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:42:37" time="2.402" tests="5">
+    <testcase classname="getMobilityProfile returns null when no profile has been created" name="getMobilityProfile returns null when no profile has been created" time="0.706">
+    </testcase>
+    <testcase classname="getMobilityProfile returns the stored profile after createMobilityProfile is called" name="getMobilityProfile returns the stored profile after createMobilityProfile is called" time="0.01">
+    </testcase>
+    <testcase classname="createMobilityProfile creates a profile with all provided fields" name="createMobilityProfile creates a profile with all provided fields" time="0.031">
+    </testcase>
+    <testcase classname="updateMobilityProfile updates an existing profile and preserves profileId" name="updateMobilityProfile updates an existing profile and preserves profileId" time="0.01">
+    </testcase>
+    <testcase classname="updateMobilityProfile reflects the update when getMobilityProfile is called afterwards" name="updateMobilityProfile reflects the update when getMobilityProfile is called afterwards" time="0.015">
+    </testcase>
+  </testsuite>
+  <testsuite name="submitReport (mock mode)" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:42:37" time="2.478" tests="7">
+    <testcase classname="submitReport (mock mode) resolves with ok:true and HTTP 201" name="submitReport (mock mode) resolves with ok:true and HTTP 201" time="0.002">
     </testcase>
     <testcase classname="submitReport (mock mode) returns a response shaped like SubmitReportResponse" name="submitReport (mock mode) returns a response shaped like SubmitReportResponse" time="0">
     </testcase>
     <testcase classname="submitReport (mock mode) generates a non-empty reportId string" name="submitReport (mock mode) generates a non-empty reportId string" time="0">
     </testcase>
-    <testcase classname="submitReport (mock mode) accepts null category (optional field per UAC-7.5)" name="submitReport (mock mode) accepts null category (optional field per UAC-7.5)" time="0">
+    <testcase classname="submitReport (mock mode) accepts null category (optional field per UAC-7.5)" name="submitReport (mock mode) accepts null category (optional field per UAC-7.5)" time="0.001">
     </testcase>
     <testcase classname="submitReport (mock mode) accepts INDOOR context" name="submitReport (mock mode) accepts INDOOR context" time="0">
     </testcase>
     <testcase classname="submitReport (mock mode) returns a valid ISO 8601 createdAt timestamp" name="submitReport (mock mode) returns a valid ISO 8601 createdAt timestamp" time="0">
     </testcase>
-    <testcase classname="submitReport (mock mode) rounds coordinates to 6 decimal places before sending" name="submitReport (mock mode) rounds coordinates to 6 decimal places before sending" time="0">
+    <testcase classname="submitReport (mock mode) rounds coordinates to 6 decimal places before sending" name="submitReport (mock mode) rounds coordinates to 6 decimal places before sending" time="0.001">
     </testcase>
   </testsuite>
-  <testsuite name="getMobilityProfile" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:22:54" time="1.042" tests="5">
-    <testcase classname="getMobilityProfile returns null when no profile has been created" name="getMobilityProfile returns null when no profile has been created" time="0.147">
+  <testsuite name="ReportSuccessScreen" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:42:37" time="5.85" tests="7">
+    <testcase classname="ReportSuccessScreen renders the success heading" name="ReportSuccessScreen renders the success heading" time="2.406">
     </testcase>
-    <testcase classname="getMobilityProfile returns the stored profile after createMobilityProfile is called" name="getMobilityProfile returns the stored profile after createMobilityProfile is called" time="0.023">
+    <testcase classname="ReportSuccessScreen displays a truncated, uppercased report ID from the last 8 chars" name="ReportSuccessScreen displays a truncated, uppercased report ID from the last 8 chars" time="0.011">
     </testcase>
-    <testcase classname="createMobilityProfile creates a profile with all provided fields" name="createMobilityProfile creates a profile with all provided fields" time="0.022">
+    <testcase classname="ReportSuccessScreen shows the UNVERIFIED status badge" name="ReportSuccessScreen shows the UNVERIFIED status badge" time="0.005">
     </testcase>
-    <testcase classname="updateMobilityProfile updates an existing profile and preserves profileId" name="updateMobilityProfile updates an existing profile and preserves profileId" time="0.011">
+    <testcase classname="ReportSuccessScreen shows autoVerified as No when false" name="ReportSuccessScreen shows autoVerified as No when false" time="0.005">
     </testcase>
-    <testcase classname="updateMobilityProfile reflects the update when getMobilityProfile is called afterwards" name="updateMobilityProfile reflects the update when getMobilityProfile is called afterwards" time="0.031">
+    <testcase classname="ReportSuccessScreen shows autoVerified as Yes when true" name="ReportSuccessScreen shows autoVerified as Yes when true" time="0.004">
     </testcase>
-  </testsuite>
-  <testsuite name="useLocation" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:22:54" time="1.232" tests="5">
-    <testcase classname="useLocation starts in loading state" name="useLocation starts in loading state" time="0.033">
+    <testcase classname="ReportSuccessScreen calls onSubmitAnother when the CTA button is pressed" name="ReportSuccessScreen calls onSubmitAnother when the CTA button is pressed" time="0.004">
     </testcase>
-    <testcase classname="useLocation resolves location when permission is granted" name="useLocation resolves location when permission is granted" time="0.062">
-    </testcase>
-    <testcase classname="useLocation sets permissionDenied when permission is not granted" name="useLocation sets permissionDenied when permission is not granted" time="0.056">
-    </testcase>
-    <testcase classname="useLocation sets error string when getCurrentPositionAsync rejects" name="useLocation sets error string when getCurrentPositionAsync rejects" time="0.053">
-    </testcase>
-    <testcase classname="useLocation exposes a refetch function that updates location" name="useLocation exposes a refetch function that updates location" time="0.105">
+    <testcase classname="ReportSuccessScreen renders the submission summary section" name="ReportSuccessScreen renders the submission summary section" time="0.007">
     </testcase>
   </testsuite>
-  <testsuite name="ReportSuccessScreen" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:22:54" time="1.622" tests="7">
-    <testcase classname="ReportSuccessScreen renders the success heading" name="ReportSuccessScreen renders the success heading" time="0.305">
+  <testsuite name="undefined" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:42:37" time="6.813" tests="16">
+    <testcase classname=" shows a loading spinner while the profile is being fetched" name=" shows a loading spinner while the profile is being fetched" time="2.274">
     </testcase>
-    <testcase classname="ReportSuccessScreen displays a truncated, uppercased report ID from the last 8 chars" name="ReportSuccessScreen displays a truncated, uppercased report ID from the last 8 chars" time="0.005">
+    <testcase classname=" shows the setup prompt when there is no profile and not loading" name=" shows the setup prompt when there is no profile and not loading" time="0.014">
     </testcase>
-    <testcase classname="ReportSuccessScreen shows the UNVERIFIED status badge" name="ReportSuccessScreen shows the UNVERIFIED status badge" time="0.008">
+    <testcase classname=" does not show the edit button when no profile exists yet" name=" does not show the edit button when no profile exists yet" time="0.002">
     </testcase>
-    <testcase classname="ReportSuccessScreen shows autoVerified as No when false" name="ReportSuccessScreen shows autoVerified as No when false" time="0.007">
+    <testcase classname=" renders the profile data in view mode when a profile exists" name=" renders the profile data in view mode when a profile exists" time="0.007">
     </testcase>
-    <testcase classname="ReportSuccessScreen shows autoVerified as Yes when true" name="ReportSuccessScreen shows autoVerified as Yes when true" time="0.007">
+    <testcase classname=" switches to edit mode when the edit button is pressed" name=" switches to edit mode when the edit button is pressed" time="0.014">
     </testcase>
-    <testcase classname="ReportSuccessScreen calls onSubmitAnother when the CTA button is pressed" name="ReportSuccessScreen calls onSubmitAnother when the CTA button is pressed" time="0.006">
+    <testcase classname=" exits edit mode without saving when Cancel is pressed" name=" exits edit mode without saving when Cancel is pressed" time="0.014">
     </testcase>
-    <testcase classname="ReportSuccessScreen renders the submission summary section" name="ReportSuccessScreen renders the submission summary section" time="0.006">
+    <testcase classname=" renders all 7 aid type chips in edit mode" name=" renders all 7 aid type chips in edit mode" time="0.011">
     </testcase>
-  </testsuite>
-  <testsuite name="undefined" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:22:54" time="1.904" tests="16">
-    <testcase classname=" shows a loading spinner while the profile is being fetched" name=" shows a loading spinner while the profile is being fetched" time="0.261">
+    <testcase classname=" hides the gradient input when both slope toggles are off" name=" hides the gradient input when both slope toggles are off" time="0.009">
     </testcase>
-    <testcase classname=" shows the setup prompt when there is no profile and not loading" name=" shows the setup prompt when there is no profile and not loading" time="0.008">
+    <testcase classname=" does NOT show the gradient input when only avoidStairs is toggled on" name=" does NOT show the gradient input when only avoidStairs is toggled on" time="0.023">
     </testcase>
-    <testcase classname=" does not show the edit button when no profile exists yet" name=" does not show the edit button when no profile exists yet" time="0.011">
+    <testcase classname=" reveals the gradient input only when avoidSteepSlopes is toggled on" name=" reveals the gradient input only when avoidSteepSlopes is toggled on" time="0.016">
     </testcase>
-    <testcase classname=" renders the profile data in view mode when a profile exists" name=" renders the profile data in view mode when a profile exists" time="0.015">
+    <testcase classname=" blocks save and shows error when gradient exceeds 25%" name=" blocks save and shows error when gradient exceeds 25%" time="0.033">
     </testcase>
-    <testcase classname=" switches to edit mode when the edit button is pressed" name=" switches to edit mode when the edit button is pressed" time="0.032">
+    <testcase classname=" blocks save and shows error when gradient is negative" name=" blocks save and shows error when gradient is negative" time="0.028">
     </testcase>
-    <testcase classname=" exits edit mode without saving when Cancel is pressed" name=" exits edit mode without saving when Cancel is pressed" time="0.012">
+    <testcase classname=" blocks save and shows error when avoidSteepSlopes is on but gradient is empty" name=" blocks save and shows error when avoidSteepSlopes is on but gradient is empty" time="0.023">
     </testcase>
-    <testcase classname=" renders all 7 aid type chips in edit mode" name=" renders all 7 aid type chips in edit mode" time="0.01">
-    </testcase>
-    <testcase classname=" hides the gradient input when both slope toggles are off" name=" hides the gradient input when both slope toggles are off" time="0.01">
-    </testcase>
-    <testcase classname=" does NOT show the gradient input when only avoidStairs is toggled on" name=" does NOT show the gradient input when only avoidStairs is toggled on" time="0.014">
-    </testcase>
-    <testcase classname=" reveals the gradient input only when avoidSteepSlopes is toggled on" name=" reveals the gradient input only when avoidSteepSlopes is toggled on" time="0.015">
-    </testcase>
-    <testcase classname=" blocks save and shows error when gradient exceeds 25%" name=" blocks save and shows error when gradient exceeds 25%" time="0.026">
-    </testcase>
-    <testcase classname=" blocks save and shows error when gradient is negative" name=" blocks save and shows error when gradient is negative" time="0.025">
-    </testcase>
-    <testcase classname=" blocks save and shows error when avoidSteepSlopes is on but gradient is empty" name=" blocks save and shows error when avoidSteepSlopes is on but gradient is empty" time="0.02">
-    </testcase>
-    <testcase classname=" calls save with the correct payload when the form is valid" name=" calls save with the correct payload when the form is valid" time="0.059">
+    <testcase classname=" calls save with the correct payload when the form is valid" name=" calls save with the correct payload when the form is valid" time="0.757">
     </testcase>
     <testcase classname=" shows only the selected aid type in view mode, not all chips" name=" shows only the selected aid type in view mode, not all chips" time="0.003">
     </testcase>
-    <testcase classname=" shows an error banner when save throws" name=" shows an error banner when save throws" time="0.079">
+    <testcase classname=" shows an error banner when save throws" name=" shows an error banner when save throws" time="0.078">
     </testcase>
   </testsuite>
-  <testsuite name="ReportForm" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:22:54" time="1.922" tests="6">
-    <testcase classname="ReportForm renders all section headings" name="ReportForm renders all section headings" time="0.476">
+  <testsuite name="ReportForm" errors="0" failures="0" skipped="0" timestamp="2026-04-11T16:42:37" time="6.861" tests="6">
+    <testcase classname="ReportForm renders all section headings" name="ReportForm renders all section headings" time="3.059">
     </testcase>
-    <testcase classname="ReportForm renders OUTDOOR and INDOOR context options" name="ReportForm renders OUTDOOR and INDOOR context options" time="0.03">
+    <testcase classname="ReportForm renders OUTDOOR and INDOOR context options" name="ReportForm renders OUTDOOR and INDOOR context options" time="0.108">
     </testcase>
     <testcase classname="ReportForm renders all six obstacle categories" name="ReportForm renders all six obstacle categories" time="0.034">
     </testcase>
-    <testcase classname="ReportForm shows photo error and does NOT call API when no photo is attached (UAC-7.2)" name="ReportForm shows photo error and does NOT call API when no photo is attached (UAC-7.2)" time="0.04">
+    <testcase classname="ReportForm shows photo error and does NOT call API when no photo is attached (UAC-7.2)" name="ReportForm shows photo error and does NOT call API when no photo is attached (UAC-7.2)" time="0.038">
     </testcase>
-    <testcase classname="ReportForm does NOT show a category validation error when category is unselected (UAC-7.5)" name="ReportForm does NOT show a category validation error when category is unselected (UAC-7.5)" time="0.027">
+    <testcase classname="ReportForm does NOT show a category validation error when category is unselected (UAC-7.5)" name="ReportForm does NOT show a category validation error when category is unselected (UAC-7.5)" time="0.028">
     </testcase>
-    <testcase classname="ReportForm submit button is disabled while location is loading" name="ReportForm submit button is disabled while location is loading" time="0.026">
+    <testcase classname="ReportForm submit button is disabled while location is loading" name="ReportForm submit button is disabled while location is loading" time="0.029">
     </testcase>
   </testsuite>
 </testsuites>
