@@ -9,7 +9,7 @@ from .models import MobilityProfile, User
 class RegisterViewTest(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.url = '/api/auth/register'
+        self.url = '/api/auth/register/'
         self.valid_payload = {
             'email': 'test@example.com',
             'fullName': 'Test User',
@@ -23,7 +23,7 @@ class RegisterViewTest(TestCase):
         data = response.json()
         self.assertEqual(data['email'], 'test@example.com')
         self.assertEqual(data['fullName'], 'Test User')
-        self.assertEqual(data['status'], 'ACTIVE')
+        self.assertEqual(data['account_status'], 'ACTIVE')
         self.assertEqual(data['trustScore'], 0)
         self.assertIn('accessToken', data)
         self.assertIn('refreshToken', data)
@@ -34,7 +34,7 @@ class RegisterViewTest(TestCase):
         payload = {
             **self.valid_payload,
             'mobilityProfile': {
-                'mobilityAid': 'WHEELCHAIR',
+                'mobilityAidType': 'WHEELCHAIR',
                 'avoidStairs': True,
                 'avoidSteepSlopes': True,
                 'maxSlopeGradient': 8.0,
@@ -44,7 +44,7 @@ class RegisterViewTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         user = User.objects.get(email='test@example.com')
         profile = MobilityProfile.objects.get(user=user)
-        self.assertEqual(profile.mobility_aid, 'WHEELCHAIR')
+        self.assertEqual(profile.mobility_aid_type, 'WHEELCHAIR')
         self.assertTrue(profile.avoid_stairs)
         self.assertTrue(profile.avoid_steep_slopes)
         self.assertEqual(profile.max_slope_gradient, 8.0)

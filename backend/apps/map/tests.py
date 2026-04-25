@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -13,7 +14,8 @@ def make_user(email="user@test.com"):
     return User.objects.create_user(email=email, full_name="Test User", password="pass")
 
 
-def make_report(reporter, lat="41.083700", lng="29.051000", report_status=ReportStatus.VERIFIED, is_indoor=False, **kwargs):
+def make_report(reporter, lat="41.083700", lng="29.051000", report_status=ReportStatus.VERIFIED, context=ReportContext.OUTDOOR, **kwargs):
+    is_indoor = (context == ReportContext.INDOOR)
     defaults = dict(
         title="Broken Ramp",
         description="The ramp is broken.",
@@ -22,6 +24,7 @@ def make_report(reporter, lat="41.083700", lng="29.051000", report_status=Report
         status=report_status,
         latitude=lat,
         longitude=lng,
+        is_indoor=is_indoor,
     )
     defaults.update(kwargs)
     return Report.objects.create(reporter=reporter, **defaults)
@@ -124,6 +127,7 @@ class GetObstacleDetailTest(TestCase):
 
 class ObstacleListViewTest(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.url = "/api/map/obstacles/"
         self.user = make_user()
