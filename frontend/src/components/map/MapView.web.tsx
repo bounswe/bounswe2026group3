@@ -22,6 +22,7 @@ import { calculateRoute, type GuestPreferences, type RouteResult } from '../../a
 import { isLoggedIn } from '../../services/auth';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
+import { useRouter } from 'expo-router';
 
 // ── Leaflet icon setup ──────────────────────────────────────────────────────
 
@@ -122,8 +123,8 @@ function FitRoute({ waypoints }: { waypoints: [number, number][] | null }) {
 // ── Popup content ───────────────────────────────────────────────────────────
 
 function ObstaclePopup({
-  obs, detail, loading,
-}: { obs: Obstacle; detail: ObstacleDetail | undefined; loading: boolean }) {
+  obs, detail, loading, onViewDetails,
+}: { obs: Obstacle; detail: ObstacleDetail | undefined; loading: boolean; onViewDetails: () => void }) {
   const color = CATEGORY_COLOR[obs.category] ?? COLORS.gray500;
   const statusColor = STATUS_COLOR[obs.status] ?? COLORS.gray400;
 
@@ -154,6 +155,12 @@ function ObstaclePopup({
           <span>👍 {detail.upvoteCount ?? 0} upvote{detail.upvoteCount !== 1 ? 's' : ''}</span>
         </div>
       )}
+      <button
+        onClick={onViewDetails}
+        style={{ marginTop: 8, width: '100%', padding: '5px 0', background: 'none', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: '#374151' }}
+      >
+        View details →
+      </button>
     </div>
   );
 }
@@ -161,6 +168,7 @@ function ObstaclePopup({
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function MapView() {
+  const router = useRouter();
   const mapRef = useRef<L.Map | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -460,7 +468,12 @@ export default function MapView() {
                 eventHandlers={{ click: () => handlePinClick(obs.id) }}
               >
                 <Popup>
-                  <ObstaclePopup obs={obs} detail={detail} loading={detailLoading} />
+                  <ObstaclePopup
+                    obs={obs}
+                    detail={detail}
+                    loading={detailLoading}
+                    onViewDetails={() => router.push(`/report/${obs.id}`)}
+                  />
                 </Popup>
               </CircleMarker>
             );
