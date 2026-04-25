@@ -11,6 +11,7 @@ import { calculateRoute, type GuestPreferences, type RouteResult } from '../../a
 import { isLoggedIn } from '../../services/auth';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
+import { useRouter } from 'expo-router';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -195,6 +196,7 @@ const MAP_HTML = `<!DOCTYPE html>
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function MapView() {
+  const router = useRouter();
   const webViewRef = useRef<WebView>(null);
   const readyRef = useRef(false);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -468,6 +470,8 @@ export default function MapView() {
         }).catch(() => {});
 
         webViewRef.current?.injectJavaScript(`window.fitBothPoints(); true;`);
+      } else if (msg.type === 'PIN_CLICK') {
+        router.push(`/report/${msg.id}`);
       }
     } catch {}
   }, [loadObstacles, pushObstacles]);
