@@ -10,14 +10,6 @@ class AccountStatus(models.TextChoices):
     BANNED = 'BANNED', 'Banned'
 
 
-class UserRole(models.TextChoices):
-    GUEST = 'GUEST', 'Guest'
-    REGISTERED_USER = 'REGISTERED_USER', 'Registered User'
-    TRUSTED_CONTRIBUTOR = 'TRUSTED_CONTRIBUTOR', 'Trusted Contributor'
-    INFRASTRUCTURE_AUTHORITY = 'INFRASTRUCTURE_AUTHORITY', 'Infrastructure Authority'
-    ADMINISTRATOR = 'ADMINISTRATOR', 'Administrator'
-
-
 class MobilityAidType(models.TextChoices):
     WHEELCHAIR = 'WHEELCHAIR', 'Wheelchair'
     ELECTRIC_WHEELCHAIR = 'ELECTRIC_WHEELCHAIR', 'Electric Wheelchair'
@@ -47,6 +39,7 @@ class UserManager(BaseUserManager):
 # No Guest User since it is not supposed to be in database
 class UserRole(models.TextChoices):
     REGISTERED_USER = 'REGISTERED_USER', 'Registered User'
+    TRUSTED_CONTRIBUTOR = 'TRUSTED_CONTRIBUTOR', 'Trusted Contributor'
     INFRASTRUCTURE_AUTHORITY = 'INFRASTRUCTURE_AUTHORITY', 'Infrastructure Authority'
     ADMINISTRATOR = 'ADMINISTRATOR', 'Administrator'
 
