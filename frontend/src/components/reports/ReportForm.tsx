@@ -5,7 +5,7 @@ import { COLORS } from '../../constants/theme';
 import { useLocation } from '../../hooks/useLocation';
 import PhotoPicker, { type PhotoEntry } from './PhotoPicker';
 import { submitReport } from '../../api/reports';
-import { searchLocations, searchNominatim, type SearchResult } from '../../api/map';
+import { searchLocations, searchNominatim, reverseGeocode, type SearchResult } from '../../api/map';
 import { parseDRFError } from '../../services/auth';
 import LocationPicker from './LocationPicker';
 import type { ObstacleCategory, ReportContext, SubmitReportResponse } from '../../types/report';
@@ -57,6 +57,43 @@ export default function ReportForm({ onSuccess }: Props) {
       if (buildingTimerRef.current) clearTimeout(buildingTimerRef.current);
     };
   }, []);
+
+  // Auto-fill building name from coordinates when context is INDOOR
+  useEffect(() => {
+    if (context !== 'INDOOR') return;
+
+    // In 'pick' mode, prefer the fine-grained pinned point; fall back to the
+    // centre of the selected search area when the user hasn't dragged the pin.
+    const coords =
+      locationMode === 'current'
+        ? loc.location
+        : pickedLocation ?? (selectedArea
+            ? { lat: selectedArea.latitude, lng: selectedArea.longitude }
+            : null);
+
+    if (!coords) return;
+
+    // Don't overwrite if user already typed something
+    if (buildingName.trim()) return;
+
+    let cancelled = false;
+    setBuildingLoading(true);
+    reverseGeocode(coords.lat, coords.lng).then((name) => {
+      if (cancelled) return;
+      if (name) setBuildingName(name);
+      setBuildingLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [
+    context,
+    locationMode,
+    loc.location?.lat,
+    loc.location?.lng,
+    pickedLocation?.lat,
+    pickedLocation?.lng,
+    selectedArea?.latitude,
+    selectedArea?.longitude,
+  ]);
 
   function addPhoto(p: PhotoEntry)   { setPhotos(prev => [...prev, p]); setPhotoError(''); }
   function removePhoto(i: number)    { setPhotos(prev => prev.filter((_, idx) => idx !== i)); }

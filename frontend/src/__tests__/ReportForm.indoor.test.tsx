@@ -18,6 +18,7 @@ jest.mock('../api/map', () => ({
   searchLocations: jest.fn().mockResolvedValue([
     { id: '1', name: 'Engineering Faculty', latitude: 41.08, longitude: 29.05 },
   ]),
+  reverseGeocode: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock('../api/reports', () => ({
