@@ -22,6 +22,7 @@ import { calculateRoute, type GuestPreferences, type RouteResult } from '../../a
 import { isLoggedIn } from '../../services/auth';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
+import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
 
 // ── Leaflet icon setup ──────────────────────────────────────────────────────
 
@@ -44,11 +45,26 @@ const ORIGIN_ICON = makeCircleIcon(COLORS.green700);
 const DEST_ICON = makeCircleIcon(COLORS.red500);
 const SEARCH_PIN_ICON = makeCircleIcon(COLORS.red500);
 
+/** Indoor obstacle: circle with a small white 'i' badge — same colour coding as outdoor. */
+const makeIndoorCircleIcon = (color: string) =>
+  L.divIcon({
+    html: `<div style="
+      width:22px;height:22px;border-radius:50%;
+      background:${color};border:3px solid white;
+      box-shadow:0 3px 8px rgba(0,0,0,0.45);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:800;color:white;
+      font-family:system-ui,sans-serif;line-height:1;
+    ">i</div>`,
+    className: '',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const BOUN_CENTER: [number, number] = [41.0847, 29.0503];
 const DEFAULT_ZOOM = 16;
-const HIGH_DETAIL_ZOOM = 18;
 const DEFAULT_BBOX = { north: 41.095, south: 41.074, east: 29.065, west: 29.035 };
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -445,6 +461,22 @@ export default function MapView() {
             const cached = detailMap[obs.id];
             const detail = cached && cached !== 'loading' ? (cached as ObstacleDetail) : undefined;
             const detailLoading = cached === 'loading';
+
+            if (obs.isIndoor) {
+              return (
+                <Marker
+                  key={obs.id}
+                  position={[obs.latitude, obs.longitude]}
+                  icon={makeIndoorCircleIcon(color)}
+                  opacity={isPassive ? 0.5 : 1}
+                  eventHandlers={{ click: () => handlePinClick(obs.id) }}
+                >
+                  <Popup>
+                    <ObstaclePopup obs={obs} detail={detail} loading={detailLoading} />
+                  </Popup>
+                </Marker>
+              );
+            }
 
             return (
               <CircleMarker
