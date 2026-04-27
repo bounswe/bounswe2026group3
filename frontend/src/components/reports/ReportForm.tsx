@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
@@ -50,6 +50,13 @@ export default function ReportForm({ onSuccess }: Props) {
   const buildingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current)   clearTimeout(searchTimerRef.current);
+      if (buildingTimerRef.current) clearTimeout(buildingTimerRef.current);
+    };
+  }, []);
 
   function addPhoto(p: PhotoEntry)   { setPhotos(prev => [...prev, p]); setPhotoError(''); }
   function removePhoto(i: number)    { setPhotos(prev => prev.filter((_, idx) => idx !== i)); }
@@ -353,6 +360,9 @@ export default function ReportForm({ onSuccess }: Props) {
                   </TouchableOpacity>
                 ))}
               </View>
+            )}
+            {buildingName.trim().length >= 2 && !buildingLoading && buildingSuggestions.length === 0 && (
+              <Text style={s.noResults}>No results found</Text>
             )}
 
             <Text style={[s.fieldLabel, { marginTop: 12 }]}>

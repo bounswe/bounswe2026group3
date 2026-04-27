@@ -30,8 +30,17 @@ jest.mock('../services/auth', () => ({
 }));
 
 jest.mock('../components/reports/PhotoPicker', () => {
-  const { View } = require('react-native');
-  return { __esModule: true, default: () => <View testID="photo-picker" /> };
+  const { View, TouchableOpacity, Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ onAdd }: { onAdd: (p: { uri: string; b64: string }) => void }) => (
+      <View testID="photo-picker">
+        <TouchableOpacity testID="add-photo-btn" onPress={() => onAdd({ uri: 'mock-uri', b64: 'mock-b64' })}>
+          <Text>Add Photo</Text>
+        </TouchableOpacity>
+      </View>
+    ),
+  };
 });
 
 jest.mock('../components/reports/LocationPicker', () => {
@@ -96,5 +105,39 @@ describe('ReportForm — indoor fields', () => {
     fireEvent.press(getByText('Engineering Faculty'));
     expect(input.props.value).toBe('Engineering Faculty');
     expect(queryByText('Engineering Faculty')).toBeNull();
+  });
+
+  it('shows error and does not submit when INDOOR and building name is empty', async () => {
+    const { getByText, getByTestId, queryByText } = render(<ReportForm onSuccess={jest.fn()} />);
+    fireEvent.press(getByText('INDOOR'));
+    // Add a photo so photo validation passes
+    fireEvent.press(getByTestId('add-photo-btn'));
+    // do not fill building name
+    fireEvent.press(getByText('Submit Report'));
+    await waitFor(() => {
+      expect(getByText('Building name is required for indoor reports.')).toBeTruthy();
+    });
+    const { submitReport } = require('../api/reports');
+    expect(submitReport).not.toHaveBeenCalled();
+  });
+
+  it('includes buildingName and isIndoor in payload when INDOOR and building name is filled', async () => {
+    const { submitReport } = require('../api/reports');
+    const { getByText, getByPlaceholderText, getByTestId } = render(<ReportForm onSuccess={jest.fn()} />);
+    fireEvent.press(getByText('INDOOR'));
+    // Add a photo so photo validation passes
+    fireEvent.press(getByTestId('add-photo-btn'));
+    fireEvent.changeText(getByPlaceholderText('Search building…'), 'Engineering Faculty');
+    // Skip debounce — typing directly sets buildingName
+    fireEvent.press(getByText('Submit Report'));
+    await waitFor(() => {
+      expect(submitReport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buildingName: 'Engineering Faculty',
+          isIndoor: true,
+          context: 'INDOOR',
+        })
+      );
+    });
   });
 });
