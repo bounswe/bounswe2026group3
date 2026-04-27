@@ -26,6 +26,7 @@ jest.mock('../api/reports', () => ({
 
 jest.mock('../services/auth', () => ({
   parseDRFError: jest.fn().mockReturnValue('Server error'),
+  getAccessToken: jest.fn().mockReturnValue('mock-token'),
 }));
 
 jest.mock('../components/reports/PhotoPicker', () => {
@@ -42,6 +43,7 @@ const mockedSearchLocations = searchLocations as jest.MockedFunction<typeof sear
 
 describe('ReportForm — indoor fields', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     jest.useFakeTimers();
     mockedSearchLocations.mockResolvedValue([
       { id: '1', name: 'Engineering Faculty', latitude: 41.08, longitude: 29.05 },
@@ -78,7 +80,7 @@ describe('ReportForm — indoor fields', () => {
     fireEvent.press(getByText('INDOOR'));
     const input = getByPlaceholderText('Search building…');
     fireEvent.changeText(input, 'Eng');
-    act(() => { jest.advanceTimersByTime(400); });
+    await act(async () => { jest.advanceTimersByTime(400); });
     await waitFor(() => {
       expect(getByText('Engineering Faculty')).toBeTruthy();
     });
@@ -89,7 +91,7 @@ describe('ReportForm — indoor fields', () => {
     fireEvent.press(getByText('INDOOR'));
     const input = getByPlaceholderText('Search building…');
     fireEvent.changeText(input, 'Eng');
-    act(() => { jest.advanceTimersByTime(400); });
+    await act(async () => { jest.advanceTimersByTime(400); });
     await waitFor(() => getByText('Engineering Faculty'));
     fireEvent.press(getByText('Engineering Faculty'));
     expect(input.props.value).toBe('Engineering Faculty');
