@@ -17,6 +17,9 @@ export interface SubmitReportPayload {
   category: ObstacleCategory | null;
   description: string;
   photos: string[]; // base64-encoded image strings
+  buildingName?: string;
+  floor?: string;
+  isIndoor?: boolean;
 }
 
 // POST /reports success response — API spec §4.4
