@@ -57,6 +57,8 @@ describe('ReportForm — indoor fields', () => {
     mockedSearchLocations.mockResolvedValue([
       { id: '1', name: 'Engineering Faculty', latitude: 41.08, longitude: 29.05 },
     ]);
+    (require('../api/reports').submitReport as jest.Mock)
+      .mockResolvedValue({ ok: true, status: 201, data: {} });
   });
 
   afterEach(() => {
@@ -108,6 +110,7 @@ describe('ReportForm — indoor fields', () => {
   });
 
   it('shows error and does not submit when INDOOR and building name is empty', async () => {
+    const { submitReport } = require('../api/reports');
     const { getByText, getByTestId, queryByText } = render(<ReportForm onSuccess={jest.fn()} />);
     fireEvent.press(getByText('INDOOR'));
     // Add a photo so photo validation passes
@@ -117,7 +120,6 @@ describe('ReportForm — indoor fields', () => {
     await waitFor(() => {
       expect(getByText('Building name is required for indoor reports.')).toBeTruthy();
     });
-    const { submitReport } = require('../api/reports');
     expect(submitReport).not.toHaveBeenCalled();
   });
 

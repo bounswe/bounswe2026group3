@@ -362,7 +362,7 @@ export default function ReportForm({ onSuccess }: Props) {
               </View>
             )}
             {buildingName.trim().length >= 2 && !buildingLoading && buildingSuggestions.length === 0 && (
-              <Text style={s.noResults}>No results found</Text>
+              <Text style={s.noResults}>No results found. Try a different search.</Text>
             )}
 
             <Text style={[s.fieldLabel, { marginTop: 12 }]}>
