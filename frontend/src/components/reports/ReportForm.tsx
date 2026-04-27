@@ -46,6 +46,7 @@ export default function ReportForm({ onSuccess }: Props) {
   const [buildingName, setBuildingName]               = useState('');
   const [buildingSuggestions, setBuildingSuggestions] = useState<SearchResult[]>([]);
   const [buildingLoading, setBuildingLoading]         = useState(false);
+  const [buildingUserEdited, setBuildingUserEdited]   = useState(false);
   const [floor, setFloor]                             = useState('');
   const buildingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -58,7 +59,8 @@ export default function ReportForm({ onSuccess }: Props) {
     };
   }, []);
 
-  // Auto-fill building name from coordinates when context is INDOOR
+  // Auto-fill building name from coordinates when context is INDOOR.
+  // Runs on every pin/location change — clears stale value and re-fetches.
   useEffect(() => {
     if (context !== 'INDOOR') return;
 
@@ -73,14 +75,14 @@ export default function ReportForm({ onSuccess }: Props) {
 
     if (!coords) return;
 
-    // Don't overwrite if user already typed something
-    if (buildingName.trim()) return;
-
     let cancelled = false;
+    // Clear stale value immediately so the field shows the spinner, not old data.
+    setBuildingName('');
+    setBuildingUserEdited(false);
     setBuildingLoading(true);
     reverseGeocode(coords.lat, coords.lng).then((name) => {
       if (cancelled) return;
-      if (name) setBuildingName(name);
+      if (name) { setBuildingName(name); setBuildingUserEdited(false); }
       setBuildingLoading(false);
     });
     return () => { cancelled = true; };
@@ -94,6 +96,7 @@ export default function ReportForm({ onSuccess }: Props) {
     selectedArea?.latitude,
     selectedArea?.longitude,
   ]);
+
 
   function addPhoto(p: PhotoEntry)   { setPhotos(prev => [...prev, p]); setPhotoError(''); }
   function removePhoto(i: number)    { setPhotos(prev => prev.filter((_, idx) => idx !== i)); }
@@ -131,12 +134,14 @@ export default function ReportForm({ onSuccess }: Props) {
     if (c === 'OUTDOOR') {
       setBuildingName('');
       setBuildingSuggestions([]);
+      setBuildingUserEdited(false);
       setFloor('');
     }
   }, []);
 
   const handleBuildingInput = useCallback((text: string) => {
     setBuildingName(text);
+    setBuildingUserEdited(true);
     if (buildingTimerRef.current) clearTimeout(buildingTimerRef.current);
     if (text.trim().length < 2) { setBuildingSuggestions([]); return; }
     buildingTimerRef.current = setTimeout(async () => {
@@ -398,7 +403,7 @@ export default function ReportForm({ onSuccess }: Props) {
                 ))}
               </View>
             )}
-            {buildingName.trim().length >= 2 && !buildingLoading && buildingSuggestions.length === 0 && (
+            {buildingUserEdited && buildingName.trim().length >= 2 && !buildingLoading && buildingSuggestions.length === 0 && (
               <Text style={s.noResults}>No results found. Try a different search.</Text>
             )}
 
