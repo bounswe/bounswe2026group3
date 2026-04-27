@@ -16,11 +16,19 @@ class ReportStatus(models.TextChoices):
 
 
 class ObstacleCategory(models.TextChoices):
+    # Outdoor
     BROKEN_RAMP = "BROKEN_RAMP", "Broken Ramp"
     NARROW_SIDEWALK = "NARROW_SIDEWALK", "Narrow Sidewalk"
     DAMAGED_SURFACE = "DAMAGED_SURFACE", "Damaged Surface"
     ROAD_CONSTRUCTION = "ROAD_CONSTRUCTION", "Road Construction"
     BLOCKED_PATH = "BLOCKED_PATH", "Blocked Path"
+    # Indoor
+    BROKEN_ELEVATOR = "BROKEN_ELEVATOR", "Broken Elevator"
+    INACCESSIBLE_RESTROOM = "INACCESSIBLE_RESTROOM", "Inaccessible Restroom"
+    NARROW_CORRIDOR = "NARROW_CORRIDOR", "Narrow Corridor"
+    HEAVY_DOOR = "HEAVY_DOOR", "Heavy Door"
+    SLIPPERY_FLOOR = "SLIPPERY_FLOOR", "Slippery Floor"
+    # Shared
     OTHER = "OTHER", "Other"
 
 

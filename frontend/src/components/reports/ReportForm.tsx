@@ -12,13 +12,22 @@ import type { ObstacleCategory, ReportContext, SubmitReportResponse } from '../.
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const CATEGORIES: Array<{ value: ObstacleCategory; label: string; icon: IoniconName }> = [
+const OUTDOOR_CATEGORIES: Array<{ value: ObstacleCategory; label: string; icon: IoniconName }> = [
   { value: 'BROKEN_RAMP',       label: 'Broken Ramp',    icon: 'arrow-up-circle-outline' },
   { value: 'NARROW_SIDEWALK',   label: 'Narrow Sidewalk', icon: 'resize-outline' },
   { value: 'DAMAGED_SURFACE',   label: 'Damaged Surface', icon: 'warning-outline' },
   { value: 'ROAD_CONSTRUCTION', label: 'Construction',    icon: 'construct-outline' },
   { value: 'BLOCKED_PATH',      label: 'Blocked Path',    icon: 'stop-circle-outline' },
   { value: 'OTHER',             label: 'Other',           icon: 'ellipsis-horizontal-circle-outline' },
+];
+
+const INDOOR_CATEGORIES: Array<{ value: ObstacleCategory; label: string; icon: IoniconName }> = [
+  { value: 'BROKEN_ELEVATOR',      label: 'Broken Elevator',   icon: 'arrow-up-outline' },
+  { value: 'INACCESSIBLE_RESTROOM',label: 'Inaccessible WC',   icon: 'man-outline' },
+  { value: 'NARROW_CORRIDOR',      label: 'Narrow Corridor',   icon: 'resize-outline' },
+  { value: 'HEAVY_DOOR',           label: 'Heavy Door',        icon: 'enter-outline' },
+  { value: 'SLIPPERY_FLOOR',       label: 'Slippery Floor',    icon: 'warning-outline' },
+  { value: 'OTHER',                label: 'Other',             icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
 type LocationMode = 'current' | 'pick';
@@ -131,6 +140,7 @@ export default function ReportForm({ onSuccess }: Props) {
 
   const handleContextChange = useCallback((c: ReportContext) => {
     setContext(c);
+    setCategory(null); // reset category — selections don't carry across contexts
     if (c === 'OUTDOOR') {
       setBuildingName('');
       setBuildingSuggestions([]);
@@ -429,7 +439,7 @@ export default function ReportForm({ onSuccess }: Props) {
             </Text>
           </View>
           <View style={s.grid}>
-            {CATEGORIES.map(cat => {
+            {(context === 'INDOOR' ? INDOOR_CATEGORIES : OUTDOOR_CATEGORIES).map(cat => {
               const active = category === cat.value;
               return (
                 <TouchableOpacity

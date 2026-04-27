@@ -1,10 +1,18 @@
 // Matches ObstacleCategory enum in backend apps/reports/models.py
 export type ObstacleCategory =
+  // Outdoor
   | 'BROKEN_RAMP'
   | 'NARROW_SIDEWALK'
   | 'DAMAGED_SURFACE'
   | 'ROAD_CONSTRUCTION'
   | 'BLOCKED_PATH'
+  // Indoor
+  | 'BROKEN_ELEVATOR'
+  | 'INACCESSIBLE_RESTROOM'
+  | 'NARROW_CORRIDOR'
+  | 'HEAVY_DOOR'
+  | 'SLIPPERY_FLOOR'
+  // Shared
   | 'OTHER';
 
 // Required by API spec §4.4 — note: DB Report model is missing this field (needs migration)
