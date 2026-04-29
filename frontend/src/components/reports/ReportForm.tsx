@@ -1,24 +1,33 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import { useLocation } from '../../hooks/useLocation';
 import PhotoPicker, { type PhotoEntry } from './PhotoPicker';
 import { submitReport } from '../../api/reports';
-import { searchNominatim, type SearchResult } from '../../api/map';
+import { searchLocations, searchNominatim, reverseGeocode, type SearchResult } from '../../api/map';
 import { parseDRFError } from '../../services/auth';
 import LocationPicker from './LocationPicker';
 import type { ObstacleCategory, ReportContext, SubmitReportResponse } from '../../types/report';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const CATEGORIES: Array<{ value: ObstacleCategory; label: string; icon: IoniconName }> = [
+const OUTDOOR_CATEGORIES: Array<{ value: ObstacleCategory; label: string; icon: IoniconName }> = [
   { value: 'BROKEN_RAMP',       label: 'Broken Ramp',    icon: 'arrow-up-circle-outline' },
   { value: 'NARROW_SIDEWALK',   label: 'Narrow Sidewalk', icon: 'resize-outline' },
   { value: 'DAMAGED_SURFACE',   label: 'Damaged Surface', icon: 'warning-outline' },
   { value: 'ROAD_CONSTRUCTION', label: 'Construction',    icon: 'construct-outline' },
   { value: 'BLOCKED_PATH',      label: 'Blocked Path',    icon: 'stop-circle-outline' },
   { value: 'OTHER',             label: 'Other',           icon: 'ellipsis-horizontal-circle-outline' },
+];
+
+const INDOOR_CATEGORIES: Array<{ value: ObstacleCategory; label: string; icon: IoniconName }> = [
+  { value: 'BROKEN_ELEVATOR',      label: 'Broken Elevator',   icon: 'arrow-up-outline' },
+  { value: 'INACCESSIBLE_RESTROOM',label: 'Inaccessible WC',   icon: 'man-outline' },
+  { value: 'NARROW_CORRIDOR',      label: 'Narrow Corridor',   icon: 'resize-outline' },
+  { value: 'HEAVY_DOOR',           label: 'Heavy Door',        icon: 'enter-outline' },
+  { value: 'SLIPPERY_FLOOR',       label: 'Slippery Floor',    icon: 'warning-outline' },
+  { value: 'OTHER',                label: 'Other',             icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
 type LocationMode = 'current' | 'pick';
@@ -43,7 +52,60 @@ export default function ReportForm({ onSuccess }: Props) {
   const [selectedArea, setSelectedArea] = useState<SearchResult | null>(null);
   const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  const [buildingName, setBuildingName]               = useState('');
+  const [buildingSuggestions, setBuildingSuggestions] = useState<SearchResult[]>([]);
+  const [buildingLoading, setBuildingLoading]         = useState(false);
+  const [buildingUserEdited, setBuildingUserEdited]   = useState(false);
+  const [floor, setFloor]                             = useState('');
+  const buildingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current)   clearTimeout(searchTimerRef.current);
+      if (buildingTimerRef.current) clearTimeout(buildingTimerRef.current);
+    };
+  }, []);
+
+  // Auto-fill building name from coordinates when context is INDOOR.
+  // Runs on every pin/location change — clears stale value and re-fetches.
+  useEffect(() => {
+    if (context !== 'INDOOR') return;
+
+    // In 'pick' mode, prefer the fine-grained pinned point; fall back to the
+    // centre of the selected search area when the user hasn't dragged the pin.
+    const coords =
+      locationMode === 'current'
+        ? loc.location
+        : pickedLocation ?? (selectedArea
+            ? { lat: selectedArea.latitude, lng: selectedArea.longitude }
+            : null);
+
+    if (!coords) return;
+
+    let cancelled = false;
+    // Clear stale value immediately so the field shows the spinner, not old data.
+    setBuildingName('');
+    setBuildingUserEdited(false);
+    setBuildingLoading(true);
+    reverseGeocode(coords.lat, coords.lng).then((name) => {
+      if (cancelled) return;
+      if (name) { setBuildingName(name); setBuildingUserEdited(false); }
+      setBuildingLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [
+    context,
+    locationMode,
+    loc.location?.lat,
+    loc.location?.lng,
+    pickedLocation?.lat,
+    pickedLocation?.lng,
+    selectedArea?.latitude,
+    selectedArea?.longitude,
+  ]);
+
 
   function addPhoto(p: PhotoEntry)   { setPhotos(prev => [...prev, p]); setPhotoError(''); }
   function removePhoto(i: number)    { setPhotos(prev => prev.filter((_, idx) => idx !== i)); }
@@ -76,6 +138,35 @@ export default function ReportForm({ onSuccess }: Props) {
     setSearchResults([]);
   }, []);
 
+  const handleContextChange = useCallback((c: ReportContext) => {
+    setContext(c);
+    setCategory(null); // reset category — selections don't carry across contexts
+    if (c === 'OUTDOOR') {
+      setBuildingName('');
+      setBuildingSuggestions([]);
+      setBuildingUserEdited(false);
+      setFloor('');
+    }
+  }, []);
+
+  const handleBuildingInput = useCallback((text: string) => {
+    setBuildingName(text);
+    setBuildingUserEdited(true);
+    if (buildingTimerRef.current) clearTimeout(buildingTimerRef.current);
+    if (text.trim().length < 2) { setBuildingSuggestions([]); return; }
+    buildingTimerRef.current = setTimeout(async () => {
+      setBuildingLoading(true);
+      const results = await searchLocations(text.trim());
+      setBuildingSuggestions(results);
+      setBuildingLoading(false);
+    }, 400);
+  }, []);
+
+  const handleSelectBuilding = useCallback((result: SearchResult) => {
+    setBuildingName(result.name);
+    setBuildingSuggestions([]);
+  }, []);
+
   const handleSwitchMode = useCallback((mode: LocationMode) => {
     setLocationMode(mode);
     if (mode === 'current') {
@@ -96,6 +187,10 @@ export default function ReportForm({ onSuccess }: Props) {
   async function handleSubmit() {
     setApiError('');
     if (photos.length === 0) { setPhotoError('At least one photo is required.'); return; }
+    if (context === 'INDOOR' && !buildingName.trim()) {
+      setApiError('Building name is required for indoor reports.');
+      return;
+    }
     if (!finalLocation) {
       setApiError(locationMode === 'current'
         ? 'Location not available yet — please wait or tap Retry.'
@@ -110,6 +205,11 @@ export default function ReportForm({ onSuccess }: Props) {
         category,
         description: description.trim(),
         photos: photos.map(p => p.b64),
+        ...(context === 'INDOOR' && {
+          buildingName: buildingName.trim(),
+          floor: floor.trim() || undefined,
+          isIndoor: true,
+        }),
       });
       if (res.ok) {
         onSuccess(res.data as SubmitReportResponse);
@@ -262,7 +362,7 @@ export default function ReportForm({ onSuccess }: Props) {
               <TouchableOpacity
                 key={c}
                 style={[s.pill, context === c && s.pillActive]}
-                onPress={() => setContext(c)}
+                onPress={() => handleContextChange(c)}
                 activeOpacity={0.8}
               >
                 <Ionicons
@@ -276,6 +376,60 @@ export default function ReportForm({ onSuccess }: Props) {
           </View>
         </View>
 
+        {/* ── Indoor Details ── */}
+        {context === 'INDOOR' && (
+          <View style={s.card}>
+            <View style={s.cardTitleRow}>
+              <Ionicons name="business-outline" size={18} color={COLORS.green600} />
+              <Text style={s.cardTitle}>Indoor Details</Text>
+            </View>
+
+            <Text style={s.fieldLabel}>
+              Building name <Text style={s.required}>*</Text>
+            </Text>
+            <View style={s.searchRow}>
+              <Ionicons name="search" size={16} color={COLORS.gray400} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search building…"
+                placeholderTextColor={COLORS.gray400}
+                value={buildingName}
+                onChangeText={handleBuildingInput}
+              />
+              {buildingLoading && <ActivityIndicator size="small" color={COLORS.green600} />}
+            </View>
+            {buildingSuggestions.length > 0 && (
+              <View style={s.resultsList}>
+                {buildingSuggestions.map((r) => (
+                  <TouchableOpacity
+                    key={r.id}
+                    style={s.resultItem}
+                    onPress={() => handleSelectBuilding(r)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="business-outline" size={16} color={COLORS.green600} />
+                    <Text style={s.resultText} numberOfLines={2}>{r.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {buildingUserEdited && buildingName.trim().length >= 2 && !buildingLoading && buildingSuggestions.length === 0 && (
+              <Text style={s.noResults}>No results found. Try a different search.</Text>
+            )}
+
+            <Text style={[s.fieldLabel, { marginTop: 12 }]}>
+              Floor <Text style={s.optional}>(optional)</Text>
+            </Text>
+            <TextInput
+              style={s.floorInput}
+              placeholder="e.g. Ground Floor, 2nd Floor, Basement"
+              placeholderTextColor={COLORS.gray400}
+              value={floor}
+              onChangeText={setFloor}
+            />
+          </View>
+        )}
+
         {/* ── Category ── */}
         <View style={s.card}>
           <View style={s.cardTitleRow}>
@@ -285,7 +439,7 @@ export default function ReportForm({ onSuccess }: Props) {
             </Text>
           </View>
           <View style={s.grid}>
-            {CATEGORIES.map(cat => {
+            {(context === 'INDOOR' ? INDOOR_CATEGORIES : OUTDOOR_CATEGORIES).map(cat => {
               const active = category === cat.value;
               return (
                 <TouchableOpacity
@@ -408,4 +562,12 @@ const s = StyleSheet.create({
   // Selected area
   selectedAreaRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, backgroundColor: COLORS.green50, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: COLORS.green200 },
   selectedAreaText:{ fontSize: 13, color: COLORS.green700, fontWeight: '600', flex: 1 },
+  // Indoor Details
+  fieldLabel:  { fontSize: 13, fontWeight: '600', color: COLORS.gray700, marginBottom: 6 },
+  required:    { color: COLORS.red500 },
+  floorInput:  {
+    borderWidth: 1.5, borderColor: COLORS.gray300, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 14, color: COLORS.gray900,
+  },
 });

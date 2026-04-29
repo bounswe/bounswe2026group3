@@ -14,6 +14,11 @@ _railway_domain = config('RAILWAY_PUBLIC_DOMAIN', default='')
 if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_railway_domain)
 
+# In local development allow any host (e.g. physical device on LAN, emulator).
+# Never reached in production because DEBUG is False there.
+if DEBUG:
+    ALLOWED_HOSTS.append('*')
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

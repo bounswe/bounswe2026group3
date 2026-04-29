@@ -11,6 +11,7 @@ import { calculateRoute, type GuestPreferences, type RouteResult } from '../../a
 import { isLoggedIn } from '../../services/auth';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
+import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
 import { useRouter } from 'expo-router';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -65,22 +66,36 @@ const MAP_HTML = `<!DOCTYPE html>
     markers = [];
     var currentZoom = map.getZoom();
     obstacles.forEach(function(obs) {
-      if (obs.isIndoor && currentZoom < 18) return;
+      if (obs.isIndoor && currentZoom < ${HIGH_DETAIL_ZOOM}) return;
       var isPassive = obs.status === 'PASSIVE';
       var color = CATEGORY_COLOR[obs.category] || '#9CA3AF';
-      var marker = L.circleMarker([obs.latitude, obs.longitude], {
-        radius: 10, color: color, fillColor: color,
-        fillOpacity: isPassive ? 0.4 : 0.85,
-        weight: isPassive ? 1 : 2, opacity: isPassive ? 0.5 : 1
-      });
+      var marker;
+      if (obs.isIndoor) {
+        var indoorIcon = L.divIcon({
+          html: '<div style="width:22px;height:22px;border-radius:50%;background:' + color + ';border:3px solid white;box-shadow:0 3px 8px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;font-family:system-ui,sans-serif;line-height:1">i<\/div>',
+          className: '',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+        marker = L.marker([obs.latitude, obs.longitude], {
+          icon: indoorIcon,
+          opacity: isPassive ? 0.5 : 1
+        });
+      } else {
+        marker = L.circleMarker([obs.latitude, obs.longitude], {
+          radius: 10, color: color, fillColor: color,
+          fillOpacity: isPassive ? 0.4 : 0.85,
+          weight: isPassive ? 1 : 2, opacity: isPassive ? 0.5 : 1
+        });
+      }
       var statusColor = STATUS_COLOR[obs.status] || '#9CA3AF';
       var statusLabel = STATUS_LABEL[obs.status] || obs.status;
       var catLabel = obs.category.replace(/_/g, ' ');
       var popupHtml =
-        '<div class="popup-title">' + obs.title + '<\\/div>' +
-        '<span class="badge" style="background:' + color + '">' + catLabel + '<\\/span>' +
-        '<span class="badge" style="background:' + statusColor + '">' + statusLabel + '<\\/span>' +
-        (obs.description ? '<div class="popup-desc">' + obs.description + '<\\/div>' : '');
+        '<div class="popup-title">' + obs.title + '<\/div>' +
+        '<span class="badge" style="background:' + color + '">' + catLabel + '<\/span>' +
+        '<span class="badge" style="background:' + statusColor + '">' + statusLabel + '<\/span>' +
+        (obs.description ? '<div class="popup-desc">' + obs.description + '<\/div>' : '');
       marker.bindPopup(popupHtml, { maxWidth: 220 });
       marker.on('click', function() {
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PIN_CLICK', id: obs.id }));
