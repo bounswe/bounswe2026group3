@@ -10,14 +10,6 @@ class AccountStatus(models.TextChoices):
     BANNED = 'BANNED', 'Banned'
 
 
-class UserRole(models.TextChoices):
-    GUEST = 'GUEST', 'Guest'
-    REGISTERED_USER = 'REGISTERED_USER', 'Registered User'
-    TRUSTED_CONTRIBUTOR = 'TRUSTED_CONTRIBUTOR', 'Trusted Contributor'
-    INFRASTRUCTURE_AUTHORITY = 'INFRASTRUCTURE_AUTHORITY', 'Infrastructure Authority'
-    ADMINISTRATOR = 'ADMINISTRATOR', 'Administrator'
-
-
 class MobilityAidType(models.TextChoices):
     WHEELCHAIR = 'WHEELCHAIR', 'Wheelchair'
     ELECTRIC_WHEELCHAIR = 'ELECTRIC_WHEELCHAIR', 'Electric Wheelchair'
@@ -47,6 +39,7 @@ class UserManager(BaseUserManager):
 # No Guest User since it is not supposed to be in database
 class UserRole(models.TextChoices):
     REGISTERED_USER = 'REGISTERED_USER', 'Registered User'
+    TRUSTED_CONTRIBUTOR = 'TRUSTED_CONTRIBUTOR', 'Trusted Contributor'
     INFRASTRUCTURE_AUTHORITY = 'INFRASTRUCTURE_AUTHORITY', 'Infrastructure Authority'
     ADMINISTRATOR = 'ADMINISTRATOR', 'Administrator'
 
@@ -86,6 +79,22 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='password_reset_tokens'
+    )
+    token = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'password_reset_tokens'
+
+    def __str__(self):
+        return f'PasswordResetToken for {self.user.email}'
 
 
 class MobilityProfile(models.Model):
