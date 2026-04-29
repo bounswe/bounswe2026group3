@@ -127,6 +127,9 @@ SUPABASE_ANON_KEY = config('SUPABASE_ANON_KEY', default='')
 SUPABASE_SERVICE_ROLE_KEY = config('SUPABASE_SERVICE_ROLE_KEY', default='')
 SUPABASE_PHOTOS_BUCKET = config('SUPABASE_PHOTOS_BUCKET', default='report-photos')
 
+TRUST_SCORE_VERIFIED_DELTA = config('TRUST_SCORE_VERIFIED_DELTA', default=5, cast=int)
+TRUST_SCORE_MALICIOUS_DELTA = config('TRUST_SCORE_MALICIOUS_DELTA', default=10, cast=int)
+
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
