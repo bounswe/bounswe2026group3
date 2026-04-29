@@ -32,6 +32,21 @@ export default function InteractionBar({
     if (!res.ok) {
       onUpdate({ upvoteCount, userUpvoted: false });
       Alert.alert('Something went wrong', 'Could not upvote. Please try again.');
+      return;
+    }
+    if (typeof res.data.upvoteCount === 'number') {
+      const patch: Partial<ObstacleDetail> = {
+        upvoteCount: res.data.upvoteCount,
+        userUpvoted: true,
+      };
+      const next = res.data.status;
+      if (
+        next === 'UNVERIFIED' || next === 'PASSIVE' || next === 'VERIFIED' ||
+        next === 'RESOLVED_AWAITING_VALIDATION' || next === 'CLOSED'
+      ) {
+        patch.status = next;
+      }
+      onUpdate(patch);
     }
   }
 

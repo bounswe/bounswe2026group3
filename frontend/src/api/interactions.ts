@@ -8,9 +8,17 @@ function authHeaders(): Record<string, string> {
   };
 }
 
+export interface UpvoteResponse {
+  reportId?: string;
+  upvoteCount?: number;
+  status?: string;
+  autoVerified?: boolean;
+  userUpvoted?: boolean;
+}
+
 export async function postUpvote(
   reportId: string,
-): Promise<{ ok: boolean; data: { upvoteCount: number; userUpvoted: boolean } }> {
+): Promise<{ ok: boolean; data: UpvoteResponse }> {
   try {
     const res = await fetch(`${API_BASE}/api/reports/${reportId}/upvote/`, {
       method: 'POST',
@@ -19,7 +27,7 @@ export async function postUpvote(
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, data };
   } catch {
-    return { ok: false, data: { upvoteCount: 0, userUpvoted: false } };
+    return { ok: false, data: {} };
   }
 }
 
