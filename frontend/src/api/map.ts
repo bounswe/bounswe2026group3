@@ -44,6 +44,11 @@ const CATEGORY_LABEL: Record<string, string> = {
   DAMAGED_SURFACE: 'Damaged Surface',
   ROAD_CONSTRUCTION: 'Road Construction',
   BLOCKED_PATH: 'Blocked Path',
+  BROKEN_ELEVATOR: 'Broken Elevator',
+  INACCESSIBLE_RESTROOM: 'Inaccessible Restroom',
+  NARROW_CORRIDOR: 'Narrow Corridor',
+  HEAVY_DOOR: 'Heavy Door',
+  SLIPPERY_FLOOR: 'Slippery Floor',
   OTHER: 'Other',
 };
 

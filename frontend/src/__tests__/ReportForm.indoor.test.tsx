@@ -76,7 +76,7 @@ describe('ReportForm — indoor fields', () => {
     fireEvent.press(getByText('INDOOR'));
     expect(getByText('Indoor Details')).toBeTruthy();
     expect(getByText(/Building name/)).toBeTruthy();
-    expect(getByText(/Floor/)).toBeTruthy();
+    expect(getByText(/^Floor/)).toBeTruthy();
   });
 
   it('hides Indoor Details card when switching back to OUTDOOR', () => {

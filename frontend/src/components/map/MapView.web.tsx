@@ -480,7 +480,12 @@ export default function MapView() {
                   eventHandlers={{ click: () => handlePinClick(obs.id) }}
                 >
                   <Popup>
-                    <ObstaclePopup obs={obs} detail={detail} loading={detailLoading} />
+                    <ObstaclePopup
+                      obs={obs}
+                      detail={detail}
+                      loading={detailLoading}
+                      onViewDetails={() => router.push(`/report/${obs.id}`)}
+                    />
                   </Popup>
                 </Marker>
               );
