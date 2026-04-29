@@ -131,3 +131,16 @@ class UserProfileUpdateSerializer(serializers.Serializer):
         instance.birth_date = validated_data.get('birth_date', instance.birth_date)
         instance.save(update_fields=['full_name', 'birth_date'])
         return instance
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
