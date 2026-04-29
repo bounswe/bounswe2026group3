@@ -5,7 +5,9 @@ from django.conf import settings
 from django.db import transaction
 from supabase import create_client
 
-from .models import Report, Photo, ReportStatus, ObstacleCategory
+from apps.users.models import UserRole
+
+from .models import Interaction, InteractionType, Report, Photo, ReportStatus, ObstacleCategory
 
 
 def _get_supabase_client():
@@ -96,3 +98,64 @@ def detect_duplicate(report: Report) -> Report | None:
 def auto_verify(report: Report) -> bool:
     """Return True if report meets auto-verification criteria."""
     pass
+
+
+class SelfUpvoteError(Exception):
+    """Raised when a user attempts to upvote their own report."""
+
+
+def _upvote_threshold_for(reporter) -> int:
+    if reporter.role == UserRole.TRUSTED_CONTRIBUTOR:
+        return settings.AUTO_VERIFY_TRUSTED_UPVOTE_THRESHOLD
+    return settings.AUTO_VERIFY_UPVOTE_THRESHOLD
+
+
+@transaction.atomic
+def register_upvote(user, report_id) -> dict:
+    """Record an upvote on a report. Idempotent: re-calling does not double-count.
+
+    - Raises Report.DoesNotExist for an unknown id.
+    - Raises SelfUpvoteError if the caller is the report's reporter.
+    - When the upvote count *strictly exceeds* the threshold (picked by reporter role)
+      and the report is still UNVERIFIED, transitions to VERIFIED and awards trust score.
+    """
+    from apps.trust_scores.services import apply_status_change_delta
+
+    report = Report.objects.select_for_update().select_related('reporter').get(pk=report_id)
+
+    if report.reporter_id == user.id:
+        raise SelfUpvoteError()
+
+    _, created = Interaction.objects.get_or_create(
+        report=report,
+        user=user,
+        interaction_type=InteractionType.UPVOTE,
+    )
+
+    upvote_count = Interaction.objects.filter(
+        report=report,
+        interaction_type=InteractionType.UPVOTE,
+    ).count()
+
+    auto_verified = False
+    if (
+        created
+        and report.status == ReportStatus.UNVERIFIED
+        and upvote_count > _upvote_threshold_for(report.reporter)
+    ):
+        old_status = report.status
+        report.status = ReportStatus.VERIFIED
+        report.save(update_fields=['status', 'updated_at'])
+        apply_status_change_delta(
+            report.reporter,
+            old_status=old_status,
+            new_status=ReportStatus.VERIFIED,
+        )
+        auto_verified = True
+
+    return {
+        'reportId': report.id,
+        'upvoteCount': upvote_count,
+        'status': report.status,
+        'autoVerified': auto_verified,
+    }

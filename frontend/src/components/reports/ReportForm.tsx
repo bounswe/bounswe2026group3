@@ -554,7 +554,7 @@ const s = StyleSheet.create({
   submitLabel:     { color: COLORS.white, fontSize: 15, fontWeight: '700' },
   // Search
   searchRow:       { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, borderWidth: 1.5, borderColor: COLORS.gray300, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  searchInput:     { flex: 1, fontSize: 14, color: COLORS.gray900, paddingVertical: 0 },
+  searchInput:     { flex: 1, fontSize: 14, color: COLORS.gray900, paddingVertical: 0, outlineStyle: 'none' },
   resultsList:     { marginTop: 8, borderWidth: 1, borderColor: COLORS.gray200, borderRadius: 10, overflow: 'hidden' as const },
   resultItem:      { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.gray200 },
   resultText:      { fontSize: 13, color: COLORS.gray700, flex: 1 },

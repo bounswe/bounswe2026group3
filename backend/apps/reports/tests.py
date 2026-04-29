@@ -247,3 +247,152 @@ class ReportCreateViewTest(TestCase):
     def test_invalid_payload_returns_400(self):
         response = self.client.post(self.url, {}, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ---------------------------------------------------------------------------
+# View + Service: POST /api/reports/<id>/upvote/
+# ---------------------------------------------------------------------------
+
+from uuid import uuid4
+
+from django.test import override_settings
+
+from apps.reports.models import Interaction, InteractionType
+from apps.users.models import UserRole
+
+
+@override_settings(
+    AUTO_VERIFY_UPVOTE_THRESHOLD=5,
+    AUTO_VERIFY_TRUSTED_UPVOTE_THRESHOLD=2,
+    TRUST_SCORE_VERIFIED_DELTA=3,
+    TRUSTED_REPUTATION_THRESHOLD=1000,
+)
+class ReportUpvoteViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.reporter = make_user(email="reporter@test.com")
+        self.report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        self.url = f"/api/reports/{self.report.id}/upvote/"
+
+    def _voter(self, n):
+        return make_user(email=f"voter{n}@test.com")
+
+    def test_author_cannot_upvote_own_report_403(self):
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            Interaction.objects.filter(report=self.report).count(), 0
+        )
+
+    def test_anonymous_returns_401(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unknown_report_returns_404(self):
+        self.client.force_authenticate(user=self._voter(1))
+        response = self.client.post(f"/api/reports/{uuid4()}/upvote/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_first_upvote_increments_and_returns_count(self):
+        voter = self._voter(1)
+        self.client.force_authenticate(user=voter)
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data["upvoteCount"], 1)
+        self.assertEqual(data["status"], ReportStatus.UNVERIFIED)
+        self.assertFalse(data["autoVerified"])
+
+    def test_duplicate_upvote_is_idempotent(self):
+        voter = self._voter(1)
+        self.client.force_authenticate(user=voter)
+
+        first = self.client.post(self.url)
+        second = self.client.post(self.url)
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(first.json()["upvoteCount"], 1)
+        self.assertEqual(second.json()["upvoteCount"], 1)
+        self.assertEqual(
+            Interaction.objects.filter(
+                report=self.report, interaction_type=InteractionType.UPVOTE
+            ).count(),
+            1,
+        )
+
+    def test_standard_reporter_transitions_above_threshold(self):
+        # Threshold is 5 (strict >); 5 upvotes = stays UNVERIFIED, 6th = VERIFIED.
+        for i in range(5):
+            self.client.force_authenticate(user=self._voter(i))
+            self.client.post(self.url)
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.UNVERIFIED)
+
+        self.client.force_authenticate(user=self._voter(5))
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data["upvoteCount"], 6)
+        self.assertEqual(data["status"], ReportStatus.VERIFIED)
+        self.assertTrue(data["autoVerified"])
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.VERIFIED)
+        self.reporter.refresh_from_db()
+        self.assertEqual(self.reporter.reputation_points, 3)
+
+    def test_trusted_reporter_transitions_at_lower_threshold(self):
+        self.reporter.role = UserRole.TRUSTED_CONTRIBUTOR
+        self.reporter.save(update_fields=['role'])
+
+        # Trusted threshold is 2 (strict >); 2 upvotes = stays, 3rd = VERIFIED.
+        for i in range(2):
+            self.client.force_authenticate(user=self._voter(i))
+            self.client.post(self.url)
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.UNVERIFIED)
+
+        self.client.force_authenticate(user=self._voter(2))
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data["upvoteCount"], 3)
+        self.assertEqual(data["status"], ReportStatus.VERIFIED)
+        self.assertTrue(data["autoVerified"])
+
+    def test_standard_reporter_does_not_transition_at_trusted_threshold(self):
+        # 3 upvotes is enough for trusted, but reporter is REGISTERED_USER -> still UNVERIFIED.
+        for i in range(3):
+            self.client.force_authenticate(user=self._voter(i))
+            response = self.client.post(self.url)
+
+        data = response.json()
+        self.assertEqual(data["upvoteCount"], 3)
+        self.assertEqual(data["status"], ReportStatus.UNVERIFIED)
+        self.assertFalse(data["autoVerified"])
+
+    def test_no_double_transition_after_verified(self):
+        # Once VERIFIED, further upvotes don't re-trigger the transition or re-award score.
+        for i in range(6):
+            self.client.force_authenticate(user=self._voter(i))
+            self.client.post(self.url)
+
+        self.reporter.refresh_from_db()
+        self.assertEqual(self.reporter.reputation_points, 3)
+
+        self.client.force_authenticate(user=self._voter(6))
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.json()["upvoteCount"], 7)
+        self.assertEqual(response.json()["status"], ReportStatus.VERIFIED)
+        self.assertFalse(response.json()["autoVerified"])
+        self.reporter.refresh_from_db()
+        self.assertEqual(self.reporter.reputation_points, 3)
