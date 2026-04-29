@@ -7,7 +7,7 @@ from supabase import create_client
 
 from apps.users.models import UserRole
 
-from .models import Interaction, InteractionType, Report, Photo, ReportStatus, ObstacleCategory
+from .models import Interaction, InteractionType, Report, Photo, ReportStatus, ObstacleCategory, StatusChange
 
 
 def _get_supabase_client():
@@ -104,6 +104,14 @@ class SelfUpvoteError(Exception):
     """Raised when a user attempts to upvote their own report."""
 
 
+class NotEligibleToConfirmError(Exception):
+    """Raised when a user is neither the reporter nor an upvoter."""
+
+
+class ReportNotAwaitingValidationError(Exception):
+    """Raised when confirm-resolution is called on a report not in RESOLVED_AWAITING_VALIDATION."""
+
+
 def _upvote_threshold_for(reporter) -> int:
     if reporter.role == UserRole.TRUSTED_CONTRIBUTOR:
         return settings.AUTO_VERIFY_TRUSTED_UPVOTE_THRESHOLD
@@ -158,4 +166,63 @@ def register_upvote(user, report_id) -> dict:
         'upvoteCount': upvote_count,
         'status': report.status,
         'autoVerified': auto_verified,
+    }
+
+
+@transaction.atomic
+def register_resolution_confirmation(user, report_id) -> dict:
+    """Record a resolution confirmation from an eligible user.
+
+    Eligible users are the original reporter or anyone who previously upvoted.
+    Idempotent: re-calling by the same user does not double-count.
+    When the confirmation count reaches RESOLUTION_CONFIRMATION_THRESHOLD,
+    the report transitions to CLOSED and the transition is recorded in StatusChange.
+
+    Raises:
+        Report.DoesNotExist                  — unknown report id
+        ReportNotAwaitingValidationError     — report is not RESOLVED_AWAITING_VALIDATION
+        NotEligibleToConfirmError            — user is neither reporter nor upvoter
+    """
+    report = Report.objects.select_for_update().get(pk=report_id)
+
+    if report.status != ReportStatus.RESOLVED_AWAITING_VALIDATION:
+        raise ReportNotAwaitingValidationError()
+
+    is_reporter = report.reporter_id == user.id
+    is_upvoter = Interaction.objects.filter(
+        report=report,
+        user=user,
+        interaction_type=InteractionType.UPVOTE,
+    ).exists()
+
+    if not (is_reporter or is_upvoter):
+        raise NotEligibleToConfirmError()
+
+    _, created = Interaction.objects.get_or_create(
+        report=report,
+        user=user,
+        interaction_type=InteractionType.CONFIRM_RESOLUTION,
+    )
+
+    confirmation_count = Interaction.objects.filter(
+        report=report,
+        interaction_type=InteractionType.CONFIRM_RESOLUTION,
+    ).count()
+
+    if created and confirmation_count >= settings.RESOLUTION_CONFIRMATION_THRESHOLD:
+        old_status = report.status
+        report.status = ReportStatus.CLOSED
+        report.save(update_fields=['status', 'updated_at'])
+        StatusChange.objects.create(
+            report=report,
+            changed_by=user,
+            old_status=old_status,
+            new_status=ReportStatus.CLOSED,
+            reason='Community resolution confirmed.',
+        )
+
+    return {
+        'reportId': report.id,
+        'confirmationCount': confirmation_count,
+        'status': report.status,
     }

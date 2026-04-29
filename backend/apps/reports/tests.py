@@ -396,3 +396,138 @@ class ReportUpvoteViewTest(TestCase):
         self.assertFalse(response.json()["autoVerified"])
         self.reporter.refresh_from_db()
         self.assertEqual(self.reporter.reputation_points, 3)
+
+
+# ---------------------------------------------------------------------------
+# View + Service: POST /api/reports/<id>/confirm-resolution/
+# ---------------------------------------------------------------------------
+
+from apps.reports.models import Interaction, InteractionType, StatusChange
+
+
+@override_settings(RESOLUTION_CONFIRMATION_THRESHOLD=3)
+class ConfirmResolutionViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.reporter = make_user(email="reporter@test.com")
+        self.report = make_report(
+            self.reporter, status=ReportStatus.RESOLVED_AWAITING_VALIDATION
+        )
+        self.url = f"/api/reports/{self.report.id}/confirm-resolution/"
+
+    def _upvoter(self, n):
+        voter = make_user(email=f"voter{n}@test.com")
+        Interaction.objects.create(
+            report=self.report,
+            user=voter,
+            interaction_type=InteractionType.UPVOTE,
+        )
+        return voter
+
+    def test_anonymous_returns_401(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unknown_report_returns_404(self):
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(f"/api/reports/{uuid4()}/confirm-resolution/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_wrong_status_returns_409(self):
+        self.report.status = ReportStatus.VERIFIED
+        self.report.save()
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_non_eligible_user_returns_403(self):
+        outsider = make_user(email="outsider@test.com")
+        self.client.force_authenticate(user=outsider)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reporter_can_confirm(self):
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIn("reportId", data)
+        self.assertIn("confirmationCount", data)
+        self.assertIn("status", data)
+        self.assertEqual(data["confirmationCount"], 1)
+
+    def test_upvoter_can_confirm(self):
+        voter = self._upvoter(1)
+        self.client.force_authenticate(user=voter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["confirmationCount"], 1)
+
+    def test_idempotent_confirm_does_not_double_count(self):
+        voter = self._upvoter(1)
+        self.client.force_authenticate(user=voter)
+        self.client.post(self.url)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["confirmationCount"], 1)
+        self.assertEqual(
+            Interaction.objects.filter(
+                report=self.report,
+                interaction_type=InteractionType.CONFIRM_RESOLUTION,
+            ).count(),
+            1,
+        )
+
+    def test_transitions_to_closed_at_threshold(self):
+        # threshold = 3: reporter + 2 upvoters
+        voters = [self._upvoter(i) for i in range(2)]
+
+        self.client.force_authenticate(user=self.reporter)
+        self.client.post(self.url)
+
+        for voter in voters[:1]:
+            self.client.force_authenticate(user=voter)
+            response = self.client.post(self.url)
+            self.assertEqual(response.json()["status"], ReportStatus.RESOLVED_AWAITING_VALIDATION)
+
+        self.client.force_authenticate(user=voters[1])
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["status"], ReportStatus.CLOSED)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.CLOSED)
+
+    def test_status_change_recorded_on_closure(self):
+        voters = [self._upvoter(i) for i in range(3)]
+        for voter in voters:
+            self.client.force_authenticate(user=voter)
+            self.client.post(self.url)
+
+        self.assertTrue(
+            StatusChange.objects.filter(
+                report=self.report,
+                old_status=ReportStatus.RESOLVED_AWAITING_VALIDATION,
+                new_status=ReportStatus.CLOSED,
+            ).exists()
+        )
+
+    def test_no_double_closure_on_idempotent_call_after_closed(self):
+        voters = [self._upvoter(i) for i in range(3)]
+        for voter in voters:
+            self.client.force_authenticate(user=voter)
+            self.client.post(self.url)
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.CLOSED)
+
+        self.report.status = ReportStatus.RESOLVED_AWAITING_VALIDATION
+        self.report.save()
+
+        # Already-confirmed user calls again — idempotent, no second StatusChange
+        initial_status_change_count = StatusChange.objects.filter(report=self.report).count()
+        self.client.force_authenticate(user=voters[0])
+        self.client.post(self.url)
+        self.assertEqual(
+            StatusChange.objects.filter(report=self.report).count(),
+            initial_status_change_count,
+        )
