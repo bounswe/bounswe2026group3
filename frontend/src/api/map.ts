@@ -20,6 +20,10 @@ export interface PhotoItem {
 export interface ObstacleDetail extends Obstacle {
   photos: PhotoItem[];
   upvoteCount: number;
+  flagCount: number;
+  userUpvoted: boolean;
+  userFlagged: boolean;
+  reporterId: string;
 }
 
 export interface SearchResult {
@@ -93,6 +97,10 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
         uploadedAt: p.uploadedAt ?? p.uploaded_at,
       })),
       upvoteCount: raw.upvoteCount ?? 0,
+      flagCount: raw.flagCount ?? 0,
+      userUpvoted: raw.userUpvoted ?? false,
+      userFlagged: raw.userFlagged ?? false,
+      reporterId: raw.reporterId ?? '',
     };
   } catch {
     return null;
