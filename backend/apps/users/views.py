@@ -6,8 +6,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.users.serializers import (LoginSerializer, TokenOutputSerializer, LogoutSerializer,
-                                    RegisterSerializer, UserProfileSerializer, UserProfileUpdateSerializer)
-from apps.users.services import login_user, logout_user
+                                    RegisterSerializer, UserProfileSerializer, UserProfileUpdateSerializer,
+                                    PasswordResetRequestSerializer, PasswordResetConfirmSerializer)
+from apps.users.services import login_user, logout_user, request_password_reset, confirm_password_reset
 from apps.users.throttles import AuthRateThrottle
 
 from apps.core.permissions import IsPublic, IsUser, IsAuthority
@@ -74,6 +75,37 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response(UserProfileSerializer(user).data, status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        request_password_reset(serializer.validated_data['email'])
+        return Response(
+            {'detail': 'If this email is registered, a reset link has been sent.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        confirm_password_reset(
+            token=serializer.validated_data['token'],
+            new_password=serializer.validated_data['password'],
+        )
+        return Response(
+            {'detail': 'Password has been reset successfully.'},
+            status=status.HTTP_200_OK,
+        )
 
 
 # For permission testing purposes
