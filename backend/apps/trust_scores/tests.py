@@ -5,7 +5,7 @@ from apps.trust_scores.services import (
     apply_malicious_deletion_delta,
     apply_status_change_delta,
 )
-from apps.users.models import User
+from apps.users.models import User, UserRole
 
 
 def make_user(points=0, email="trust@test.com"):
@@ -118,3 +118,62 @@ class ApplyMaliciousDeletionDeltaTest(TestCase):
             new_score = apply_malicious_deletion_delta(user)
 
         self.assertEqual(new_score, 75)
+
+
+@override_settings(TRUST_SCORE_VERIFIED_DELTA=10, TRUSTED_REPUTATION_THRESHOLD=20)
+class PromoteToTrustedContributorTest(TestCase):
+    def test_promotes_when_score_strictly_exceeds_threshold(self):
+        user = make_user(points=15)
+        # 15 + 10 = 25 > 20 -> promote
+        apply_status_change_delta(
+            user,
+            old_status=ReportStatus.UNVERIFIED,
+            new_status=ReportStatus.VERIFIED,
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.role, UserRole.TRUSTED_CONTRIBUTOR)
+
+    def test_does_not_promote_at_exact_threshold(self):
+        user = make_user(points=10)
+        # 10 + 10 = 20, not strictly greater than 20 -> stays REGISTERED_USER
+        apply_status_change_delta(
+            user,
+            old_status=ReportStatus.UNVERIFIED,
+            new_status=ReportStatus.VERIFIED,
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.role, UserRole.REGISTERED_USER)
+
+    def test_does_not_promote_when_below_threshold(self):
+        user = make_user(points=0)
+        apply_status_change_delta(
+            user,
+            old_status=ReportStatus.UNVERIFIED,
+            new_status=ReportStatus.VERIFIED,
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.role, UserRole.REGISTERED_USER)
+
+    def test_does_not_overwrite_higher_role(self):
+        user = make_user(points=15)
+        user.role = UserRole.INFRASTRUCTURE_AUTHORITY
+        user.save(update_fields=['role'])
+
+        apply_status_change_delta(
+            user,
+            old_status=ReportStatus.UNVERIFIED,
+            new_status=ReportStatus.VERIFIED,
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.role, UserRole.INFRASTRUCTURE_AUTHORITY)
+
+    def test_no_promotion_on_unrelated_transition(self):
+        # Score didn't change, so promotion check is skipped even if score is high.
+        user = make_user(points=100)
+        apply_status_change_delta(
+            user,
+            old_status=ReportStatus.VERIFIED,
+            new_status=ReportStatus.CLOSED,
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.role, UserRole.REGISTERED_USER)

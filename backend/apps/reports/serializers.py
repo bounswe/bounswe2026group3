@@ -35,3 +35,10 @@ class ReportResponseSerializer(serializers.Serializer):
 
     def get_duplicateCandidate(self, obj):
         return self.context.get("duplicateCandidate", None)
+
+
+class UpvoteResponseSerializer(serializers.Serializer):
+    reportId = serializers.UUIDField()
+    upvoteCount = serializers.IntegerField()
+    status = serializers.CharField()
+    autoVerified = serializers.BooleanField()

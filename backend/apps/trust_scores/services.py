@@ -3,7 +3,19 @@ from django.db.models import F, Value
 from django.db.models.functions import Greatest
 
 from apps.reports.models import ReportStatus
-from apps.users.models import User
+from apps.users.models import User, UserRole
+
+
+def _maybe_promote_to_trusted(reporter):
+    # FR 1.2.5.4: grant TRUSTED_CONTRIBUTOR when score *exceeds* threshold (strict >).
+    if (
+        reporter.role == UserRole.REGISTERED_USER
+        and reporter.reputation_points > settings.TRUSTED_REPUTATION_THRESHOLD
+    ):
+        User.objects.filter(pk=reporter.pk, role=UserRole.REGISTERED_USER).update(
+            role=UserRole.TRUSTED_CONTRIBUTOR,
+        )
+        reporter.refresh_from_db(fields=['role'])
 
 
 def apply_status_change_delta(reporter, *, old_status, new_status):
@@ -16,7 +28,10 @@ def apply_status_change_delta(reporter, *, old_status, new_status):
         User.objects.filter(pk=reporter.pk).update(
             reputation_points=F('reputation_points') + delta,
         )
-    reporter.refresh_from_db(fields=['reputation_points'])
+        reporter.refresh_from_db(fields=['reputation_points'])
+        _maybe_promote_to_trusted(reporter)
+    else:
+        reporter.refresh_from_db(fields=['reputation_points'])
     return reporter.reputation_points
 
 
