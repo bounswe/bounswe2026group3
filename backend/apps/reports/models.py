@@ -8,6 +8,7 @@ class ReportStatus(models.TextChoices):
     UNVERIFIED = "UNVERIFIED", "Unverified"
     PASSIVE = "PASSIVE", "Passive"
     VERIFIED = "VERIFIED", "Verified"
+    CONFIRMED = "CONFIRMED", "Confirmed"
     RESOLVED_AWAITING_VALIDATION = (
         "RESOLVED_AWAITING_VALIDATION",
         "Resolved Awaiting Validation",

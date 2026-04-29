@@ -129,6 +129,7 @@ SUPABASE_PHOTOS_BUCKET = config('SUPABASE_PHOTOS_BUCKET', default='report-photos
 
 TRUST_SCORE_VERIFIED_DELTA = config('TRUST_SCORE_VERIFIED_DELTA', default=5, cast=int)
 TRUST_SCORE_MALICIOUS_DELTA = config('TRUST_SCORE_MALICIOUS_DELTA', default=10, cast=int)
+UPVOTE_THRESHOLD = config('UPVOTE_THRESHOLD', default=5, cast=int)
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
