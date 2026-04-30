@@ -27,7 +27,7 @@ def get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive=False,
 def get_obstacle_detail(report_id):
     try:
         return (
-            Report.objects.prefetch_related(
+            Report.objects.select_related("reporter").prefetch_related(
                 "photos",
                 "interactions",
                 "status_changes",

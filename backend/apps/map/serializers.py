@@ -50,6 +50,7 @@ class StatusHistorySerializer(serializers.Serializer):
 
 class ObstacleDetailSerializer(serializers.Serializer):
     reportId = serializers.UUIDField(source="id")
+    reporterId = serializers.UUIDField(source="reporter.id")
     location = serializers.SerializerMethodField()
     category = serializers.CharField()
     context = serializers.CharField()
@@ -57,6 +58,8 @@ class ObstacleDetailSerializer(serializers.Serializer):
     description = serializers.CharField()
     upvoteCount = serializers.SerializerMethodField()
     flagCount = serializers.SerializerMethodField()
+    userUpvoted = serializers.SerializerMethodField()
+    userFlagged = serializers.SerializerMethodField()
     photos = PhotoSerializer(many=True)
     statusHistory = StatusHistorySerializer(many=True, source="status_changes")
     createdAt = serializers.DateTimeField(source="created_at")
@@ -69,6 +72,22 @@ class ObstacleDetailSerializer(serializers.Serializer):
 
     def get_flagCount(self, obj):
         return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.FLAG)
+
+    def _user_has_interaction(self, obj, interaction_type):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return False
+        user_id = request.user.id
+        return any(
+            i.user_id == user_id and i.interaction_type == interaction_type
+            for i in obj.interactions.all()
+        )
+
+    def get_userUpvoted(self, obj):
+        return self._user_has_interaction(obj, InteractionType.UPVOTE)
+
+    def get_userFlagged(self, obj):
+        return self._user_has_interaction(obj, InteractionType.FLAG)
 
 
 class CampusLocationSerializer(serializers.Serializer):

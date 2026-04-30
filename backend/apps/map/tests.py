@@ -283,6 +283,67 @@ class ObstacleDetailViewTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# View: GET /api/map/obstacles/<id>/ — auth-aware fields (reporterId, userUpvoted, userFlagged)
+# ---------------------------------------------------------------------------
+
+class ObstacleDetailUserFieldsTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.reporter = make_user("reporter@test.com")
+        self.report = make_report(self.reporter, report_status=ReportStatus.VERIFIED)
+
+    def _url(self, report_id):
+        return f"/api/map/obstacles/{report_id}/"
+
+    def test_anonymous_user_fields(self):
+        response = self.client.get(self._url(self.report.pk))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data["reporterId"], str(self.reporter.id))
+        self.assertFalse(data["userUpvoted"])
+        self.assertFalse(data["userFlagged"])
+
+    def test_reporter_id_for_own_report(self):
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.get(self._url(self.report.pk))
+        self.assertEqual(response.json()["reporterId"], str(self.reporter.id))
+
+    def test_user_upvoted_true_when_upvoted(self):
+        voter = make_user("voter@test.com")
+        Interaction.objects.create(
+            report=self.report, user=voter, interaction_type=InteractionType.UPVOTE,
+        )
+        self.client.force_authenticate(user=voter)
+        response = self.client.get(self._url(self.report.pk))
+        data = response.json()
+        self.assertTrue(data["userUpvoted"])
+        self.assertFalse(data["userFlagged"])
+
+    def test_user_flagged_true_when_flagged(self):
+        flagger = make_user("flagger@test.com")
+        Interaction.objects.create(
+            report=self.report, user=flagger, interaction_type=InteractionType.FLAG,
+        )
+        self.client.force_authenticate(user=flagger)
+        response = self.client.get(self._url(self.report.pk))
+        data = response.json()
+        self.assertTrue(data["userFlagged"])
+        self.assertFalse(data["userUpvoted"])
+
+    def test_user_fields_isolated_per_user(self):
+        voter = make_user("voter@test.com")
+        bystander = make_user("bystander@test.com")
+        Interaction.objects.create(
+            report=self.report, user=voter, interaction_type=InteractionType.UPVOTE,
+        )
+        self.client.force_authenticate(user=bystander)
+        response = self.client.get(self._url(self.report.pk))
+        data = response.json()
+        self.assertFalse(data["userUpvoted"])
+        self.assertFalse(data["userFlagged"])
+
+
+# ---------------------------------------------------------------------------
 # View: GET /api/map/search?q=...
 # ---------------------------------------------------------------------------
 
