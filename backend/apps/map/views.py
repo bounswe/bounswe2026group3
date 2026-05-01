@@ -53,7 +53,7 @@ class ObstacleDetailView(APIView):
         if obstacle is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = ObstacleDetailSerializer(obstacle)
+        serializer = ObstacleDetailSerializer(obstacle, context={"request": request})
         return Response(serializer.data)
 
 
