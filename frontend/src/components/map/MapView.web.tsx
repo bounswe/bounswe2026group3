@@ -25,6 +25,19 @@ import { COLORS } from '../../constants/theme';
 import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
 import { useRouter } from 'expo-router';
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+}
+
+function formatTime(sec: number): string {
+  const mins = Math.round(sec / 60);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60), rem = mins % 60;
+  return rem > 0 ? `${h}h ${rem}min` : `${h}h`;
+}
+
 // ── Leaflet icon setup ──────────────────────────────────────────────────────
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -712,6 +725,30 @@ export default function MapView() {
                   <Text style={s.errorText}>{routeError}</Text>
                 </View>
               )}
+
+              {route && (
+                <View style={s.summaryCard}>
+                  <View style={s.summaryRow}>
+                    <View style={s.summaryItem}>
+                      <Ionicons name="walk-outline" size={16} color={COLORS.green700} />
+                      <Text style={s.summaryValue}>{formatDistance(route.distanceMeters)}</Text>
+                      <Text style={s.summaryLabel}>Distance</Text>
+                    </View>
+                    <View style={s.summaryDivider} />
+                    <View style={s.summaryItem}>
+                      <Ionicons name="time-outline" size={16} color={COLORS.green700} />
+                      <Text style={s.summaryValue}>{formatTime(route.estimatedTimeSeconds)}</Text>
+                      <Text style={s.summaryLabel}>Est. time</Text>
+                    </View>
+                    <View style={s.summaryDivider} />
+                    <View style={s.summaryItem}>
+                      <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.green700} />
+                      <Text style={s.summaryValue}>{route.avoidedObstaclesCount ?? 0}</Text>
+                      <Text style={s.summaryLabel}>Avoided</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -911,6 +948,22 @@ const s = StyleSheet.create({
   routeBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   errorText: { fontSize: 12, color: COLORS.red500 },
+
+  // ── Route summary ────────────────────────────────────────────────────────
+  summaryCard: {
+    marginTop: 10,
+    backgroundColor: COLORS.green50,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: COLORS.green200,
+  },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  summaryItem: { alignItems: 'center', gap: 2, flex: 1 },
+  summaryDivider: { width: 1, height: 32, backgroundColor: COLORS.green200 },
+  summaryValue: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
+  summaryLabel: { fontSize: 10, color: COLORS.gray400, fontWeight: '500' },
 
   // ── Pin mode banner ──────────────────────────────────────────────────────
   pinBanner: {
