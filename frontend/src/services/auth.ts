@@ -58,7 +58,7 @@ export interface RegisterResponse { userId: string; email: string; fullName: str
 export interface LoginPayload { email: string; password: string; }
 export interface LoginResponse { access: string; refresh: string; }
 export type UserRole = 'USER' | 'TRUSTED_CONTRIBUTOR' | 'ADMIN' | string;
-export interface UserProfile { userId: string; email: string; fullName: string; status: string; trustScore: number; role: UserRole; createdAt: string; }
+export interface UserProfile { userId: string; email: string; fullName: string; status: string; trustScore: number; role: UserRole; createdAt: string; notificationsEnabled?: boolean; }
 
 export function parseDRFError(data: any): string {
   if (!data) return 'Something went wrong.';
@@ -97,6 +97,12 @@ export async function getMe() {
 
 export async function updateMe(payload: { fullName: string }) {
   const res = await fetch(`${API_BASE}/api/auth/users/me`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+export async function patchMe(payload: Partial<{ fullName: string; notificationsEnabled: boolean }>) {
+  const res = await fetch(`${API_BASE}/api/auth/users/me`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, status: res.status, data };
 }
