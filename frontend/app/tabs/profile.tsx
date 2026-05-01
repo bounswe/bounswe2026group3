@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
 import { getMe, updateMe, clearTokens, isLoggedIn, parseDRFError, UserProfile } from '../../src/services/auth';
 import { MobilityProfileCard } from '../../src/components/profile/MobilityProfileCard';
+import { getSavedPlaces, deleteSavedPlace, SavedPlace } from '../../src/api/savedPlaces';
 
 function getInitials(name: string): string {
   if (!name) return '?';
@@ -22,6 +23,9 @@ export default function ProfileScreen() {
   const [editError, setEditError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const loadProfile = useCallback(async () => {
     if (!isLoggedIn()) { router.replace('/auth/login'); return; }
     setLoadingPage(true);
@@ -34,6 +38,17 @@ export default function ProfileScreen() {
   }, [router]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  useEffect(() => {
+    getSavedPlaces().then(setSavedPlaces);
+  }, []);
+
+  async function handleDeletePlace(id: string) {
+    setDeletingId(id);
+    const ok = await deleteSavedPlace(id);
+    if (ok) setSavedPlaces((prev) => prev.filter((p) => p.id !== id));
+    setDeletingId(null);
+  }
 
   async function handleSave() {
     if (!editName.trim()) { setEditError('Name cannot be empty.'); return; }
@@ -83,6 +98,37 @@ export default function ProfileScreen() {
 
       <MobilityProfileCard />
 
+      <View style={s.card}>
+        <View style={s.cardTitleRow}>
+          <Ionicons name="bookmark-outline" size={16} color={COLORS.green600} />
+          <Text style={s.cardTitle}>Saved Places</Text>
+        </View>
+        {savedPlaces.length === 0 ? (
+          <View style={s.stub}>
+            <Text style={s.stubP}>No saved places yet. Save frequent destinations from the route planning screen.</Text>
+          </View>
+        ) : (
+          savedPlaces.map((place) => (
+            <View key={place.id} style={s.placeRow}>
+              <Ionicons name="location-outline" size={16} color={COLORS.green600} style={{ marginTop: 1 }} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.placeLabel}>{place.label}</Text>
+                {!!place.address && <Text style={s.placeAddress} numberOfLines={1}>{place.address}</Text>}
+              </View>
+              <TouchableOpacity
+                onPress={() => handleDeletePlace(place.id)}
+                disabled={deletingId === place.id}
+                style={s.deleteBtn}
+              >
+                {deletingId === place.id
+                  ? <ActivityIndicator size="small" color={COLORS.gray400} />
+                  : <Ionicons name="trash-outline" size={16} color={COLORS.red500} />}
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </View>
+
       <View style={[s.card, { marginBottom: 20 }]}>
         <View style={s.cardTitleRow}><Ionicons name="ribbon-outline" size={16} color={COLORS.green600} /><Text style={s.cardTitle}>Badges</Text></View>
         <View style={s.stub}><View style={s.stubTag}><Text style={s.stubTagText}>MILESTONE 2</Text></View><Text style={s.stubP}>Earned badges from contributions and community activity.</Text></View>
@@ -127,6 +173,10 @@ const s = StyleSheet.create({
   stubTag: { backgroundColor: COLORS.orange100, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100, marginBottom: 6 },
   stubTagText: { fontSize: 10, fontWeight: '800', color: COLORS.orange500, letterSpacing: 0.5 },
   stubP: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', lineHeight: 20 },
+  placeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.gray200 },
+  placeLabel: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
+  placeAddress: { fontSize: 12, color: COLORS.gray400, marginTop: 1 },
+  deleteBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: 14, paddingVertical: 14, borderRadius: 10, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.gray200 },
   logoutText: { fontSize: 14, fontWeight: '600', color: COLORS.red600 },
 });
