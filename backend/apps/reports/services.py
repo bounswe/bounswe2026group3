@@ -143,6 +143,8 @@ def register_upvote(user, report_id) -> dict:
         and report.status == ReportStatus.UNVERIFIED
         and upvote_count > _upvote_threshold_for(report.reporter)
     ):
+        from apps.reports.signals import report_status_changed
+
         old_status = report.status
         report.status = ReportStatus.VERIFIED
         report.save(update_fields=['status', 'updated_at'])
@@ -150,6 +152,13 @@ def register_upvote(user, report_id) -> dict:
             report.reporter,
             old_status=old_status,
             new_status=ReportStatus.VERIFIED,
+        )
+        report_status_changed.send(
+            sender=Report,
+            report=report,
+            old_status=old_status,
+            new_status=ReportStatus.VERIFIED,
+            actor=user,
         )
         auto_verified = True
 
