@@ -8,7 +8,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Map', headerTitle: 'AccessMap', tabBarIcon: ({ color, size }) => <Ionicons name="map-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="plan" options={{ href: null }} />
       <Tabs.Screen name="map" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Notifications', headerTitle: 'Notifications', tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="report" options={{ title: 'Report', headerTitle: 'Report Obstacle', tabBarIcon: ({ color, size }) => <Ionicons name="flag-outline" size={size} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile', headerTitle: 'Profile', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} /> }} />
     </Tabs>
