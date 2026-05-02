@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Keyboard, StyleSheet, Switch,
+  ActivityIndicator, FlatList, Keyboard, ScrollView, StyleSheet, Switch,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,9 @@ import WebView from 'react-native-webview';
 
 import { fetchObstacles, searchLocations, type Obstacle, type SearchResult } from '../../api/map';
 import { calculateRoute, type GuestPreferences, type RouteResult } from '../../api/routes';
+import { getSavedPlaces, createSavedPlace, type SavedPlace } from '../../api/savedPlaces';
 import { isLoggedIn } from '../../services/auth';
+import SavePlaceModal from './SavePlaceModal';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
 import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
@@ -252,6 +254,13 @@ export default function MapView() {
     maxSlopeGradient: 8,
   });
 
+  // Saved places state
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [saveTarget, setSaveTarget] = useState<{ kind: 'origin' | 'dest'; lat: number; lng: number; address: string } | null>(null);
+  const [saveLabel, setSaveLabel] = useState('');
+  const [savingPlace, setSavingPlace] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
   // Origin autocomplete state
   const [originSuggestions, setOriginSuggestions] = useState<SearchResult[]>([]);
   const [destSuggestions, setDestSuggestions] = useState<SearchResult[]>([]);
@@ -266,6 +275,40 @@ export default function MapView() {
   const prefetchedRef = useRef<Obstacle[] | null>(null);
 
   const { location: currentLocation } = useLocation();
+
+  // ── Saved places ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (isLoggedIn()) getSavedPlaces().then(setSavedPlaces);
+  }, []);
+
+  const handleSavePlace = useCallback(async () => {
+    if (!saveTarget || !saveLabel.trim()) return;
+    setSavingPlace(true);
+    setSaveError('');
+    const result = await createSavedPlace({
+      label: saveLabel.trim(),
+      latitude: saveTarget.lat,
+      longitude: saveTarget.lng,
+      address: saveTarget.address || undefined,
+    });
+    setSavingPlace(false);
+    if (result) {
+      setSavedPlaces((prev) => [...prev, result]);
+      setSaveTarget(null);
+      setSaveLabel('');
+    } else {
+      setSaveError('Failed to save place. Please try again.');
+    }
+  }, [saveTarget, saveLabel]);
+
+  const openSaveModal = (kind: 'origin' | 'dest') => {
+    const point = kind === 'origin' ? origin : dest;
+    if (!point) return;
+    setSaveTarget({ kind, lat: point.lat, lng: point.lng, address: point.label });
+    setSaveLabel('');
+    setSaveError('');
+  };
 
   // ── Obstacle loading ─────────────────────────────────────────────────────
 
@@ -589,6 +632,18 @@ export default function MapView() {
                 </TouchableOpacity>
               </View>
 
+              {/* Saved places quick-select for origin */}
+              {originFocused && savedPlaces.length > 0 && originQ.length === 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.savedChips} keyboardShouldPersistTaps="handled">
+                  {savedPlaces.map((p) => (
+                    <TouchableOpacity key={p.id} style={s.savedChip} onPress={() => selectOriginSuggestion({ id: p.id, name: p.label, latitude: p.latitude, longitude: p.longitude })}>
+                      <Ionicons name="bookmark" size={11} color={COLORS.green700} />
+                      <Text style={s.savedChipText}>{p.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
               {/* Origin row */}
               <View style={s.inputRow}>
                 <View style={[s.dot, s.dotOrigin]} />
@@ -629,6 +684,11 @@ export default function MapView() {
                   <Ionicons name="location-outline" size={18}
                     color={pinMode === 'origin' ? COLORS.green700 : COLORS.gray400} />
                 </TouchableOpacity>
+                {origin && isLoggedIn() && (
+                  <TouchableOpacity style={s.bookmarkBtn} onPress={() => openSaveModal('origin')}>
+                    <Ionicons name="bookmark-outline" size={16} color={COLORS.green700} />
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Use current location button */}
@@ -638,6 +698,18 @@ export default function MapView() {
               </TouchableOpacity>
 
               <View style={s.connector}><View style={s.connectorLine} /></View>
+
+              {/* Saved places quick-select for destination */}
+              {destFocused && savedPlaces.length > 0 && destQ.length === 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.savedChips} keyboardShouldPersistTaps="handled">
+                  {savedPlaces.map((p) => (
+                    <TouchableOpacity key={p.id} style={s.savedChip} onPress={() => selectDestSuggestion({ id: p.id, name: p.label, latitude: p.latitude, longitude: p.longitude })}>
+                      <Ionicons name="bookmark" size={11} color={COLORS.green700} />
+                      <Text style={s.savedChipText}>{p.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
 
               {/* Destination row */}
               <View style={s.inputRow}>
@@ -679,6 +751,11 @@ export default function MapView() {
                   <Ionicons name="location-outline" size={18}
                     color={pinMode === 'dest' ? COLORS.red500 : COLORS.gray400} />
                 </TouchableOpacity>
+                {dest && isLoggedIn() && (
+                  <TouchableOpacity style={s.bookmarkBtn} onPress={() => openSaveModal('dest')}>
+                    <Ionicons name="bookmark-outline" size={16} color={COLORS.green700} />
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Get Route button */}
@@ -745,6 +822,18 @@ export default function MapView() {
         )}
 
       </View>
+
+      {/* Save place modal */}
+      {saveTarget && (
+        <SavePlaceModal
+          label={saveLabel}
+          onLabelChange={(t) => { setSaveLabel(t); setSaveError(''); }}
+          saving={savingPlace}
+          error={saveError}
+          onSave={handleSavePlace}
+          onCancel={() => { setSaveTarget(null); setSaveError(''); }}
+        />
+      )}
 
       {/* Guest preferences overlay */}
       {showPrefs && (
@@ -935,7 +1024,30 @@ const s = StyleSheet.create({
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   errorText: { fontSize: 12, color: COLORS.red500 },
 
-  // ── Route summary ─────────────────────────────────────────────────────────
+  // ── Saved places ──────────────────────────────────────────────────────────
+  savedChips: { flexDirection: 'row', paddingVertical: 6, gap: 6 },
+  savedChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: COLORS.green50, borderRadius: 100,
+    borderWidth: 1, borderColor: COLORS.green200,
+  },
+  savedChipText: { fontSize: 12, fontWeight: '600', color: COLORS.green700 },
+  bookmarkBtn: {
+    width: 36, height: 36, borderRadius: 9, borderWidth: 1,
+    borderColor: COLORS.green200, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.green50, flexShrink: 0,
+  },
+  presetRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  presetChip: {
+    flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center',
+    borderWidth: 1.5, borderColor: COLORS.gray300, backgroundColor: COLORS.white,
+  },
+  presetChipActive: { borderColor: COLORS.green600, backgroundColor: COLORS.green50 },
+  presetChipText: { fontSize: 14, fontWeight: '600', color: COLORS.gray600 },
+  presetChipTextActive: { color: COLORS.green700 },
+
+  // ── Route summary ──────────────────────────────────────────────────────────
   summaryCard: {
     marginTop: 10,
     backgroundColor: COLORS.green50,
