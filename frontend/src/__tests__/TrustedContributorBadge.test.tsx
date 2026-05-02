@@ -146,9 +146,14 @@ describe('Profile screen — Trusted Contributor badge & Trust Score', () => {
       data: makeUser({ trustScore: 137 }),
     } as any);
 
-    const { findByTestId } = render(<ProfileScreen />);
-    const node = await findByTestId('trust-score-value');
-    expect(node.props.children).toBe(137);
+    const { getByTestId } = render(<ProfileScreen />);
+    // Re-query inside waitFor so we never hold a stale ReactTestInstance:
+    // the screen re-renders after getSavedPlaces() settles, which would
+    // unmount the fiber referenced by a one-shot findByTestId() result.
+    await waitFor(() => {
+      const value = getByTestId('trust-score-value').props.children;
+      expect(String(value)).toBe('137');
+    });
   });
 
   it('falls back to 0 when trustScore is missing', async () => {
@@ -158,8 +163,10 @@ describe('Profile screen — Trusted Contributor badge & Trust Score', () => {
       data: makeUser({ trustScore: undefined }),
     } as any);
 
-    const { findByTestId } = render(<ProfileScreen />);
-    const node = await findByTestId('trust-score-value');
-    expect(node.props.children).toBe(0);
+    const { getByTestId } = render(<ProfileScreen />);
+    await waitFor(() => {
+      const value = getByTestId('trust-score-value').props.children;
+      expect(String(value)).toBe('0');
+    });
   });
 });
