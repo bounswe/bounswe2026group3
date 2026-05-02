@@ -104,18 +104,19 @@ export default function ProfileScreen() {
           <Text style={s.cardTitle}>Saved Places</Text>
         </View>
         {savedPlaces.length === 0 ? (
-          <View style={s.stub}>
+          <View testID="saved-places-empty" style={s.stub}>
             <Text style={s.stubP}>No saved places yet. Save frequent destinations from the route planning screen.</Text>
           </View>
         ) : (
           savedPlaces.map((place) => (
-            <View key={place.id} style={s.placeRow}>
+            <View key={place.id} testID={`saved-place-${place.id}`} style={s.placeRow}>
               <Ionicons name="location-outline" size={16} color={COLORS.green600} style={{ marginTop: 1 }} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.placeLabel}>{place.label}</Text>
                 {!!place.address && <Text style={s.placeAddress} numberOfLines={1}>{place.address}</Text>}
               </View>
               <TouchableOpacity
+                testID={`delete-place-${place.id}`}
                 onPress={() => handleDeletePlace(place.id)}
                 disabled={deletingId === place.id}
                 style={s.deleteBtn}

@@ -10,6 +10,7 @@ import { fetchObstacles, searchLocations, type Obstacle, type SearchResult } fro
 import { calculateRoute, type GuestPreferences, type RouteResult } from '../../api/routes';
 import { getSavedPlaces, createSavedPlace, type SavedPlace } from '../../api/savedPlaces';
 import { isLoggedIn } from '../../services/auth';
+import SavePlaceModal from './SavePlaceModal';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
 import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
@@ -258,6 +259,7 @@ export default function MapView() {
   const [saveTarget, setSaveTarget] = useState<{ kind: 'origin' | 'dest'; lat: number; lng: number; address: string } | null>(null);
   const [saveLabel, setSaveLabel] = useState('');
   const [savingPlace, setSavingPlace] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Origin autocomplete state
   const [originSuggestions, setOriginSuggestions] = useState<SearchResult[]>([]);
@@ -283,6 +285,7 @@ export default function MapView() {
   const handleSavePlace = useCallback(async () => {
     if (!saveTarget || !saveLabel.trim()) return;
     setSavingPlace(true);
+    setSaveError('');
     const result = await createSavedPlace({
       label: saveLabel.trim(),
       latitude: saveTarget.lat,
@@ -290,9 +293,13 @@ export default function MapView() {
       address: saveTarget.address || undefined,
     });
     setSavingPlace(false);
-    if (result) setSavedPlaces((prev) => [...prev, result]);
-    setSaveTarget(null);
-    setSaveLabel('');
+    if (result) {
+      setSavedPlaces((prev) => [...prev, result]);
+      setSaveTarget(null);
+      setSaveLabel('');
+    } else {
+      setSaveError('Failed to save place. Please try again.');
+    }
   }, [saveTarget, saveLabel]);
 
   const openSaveModal = (kind: 'origin' | 'dest') => {
@@ -300,6 +307,7 @@ export default function MapView() {
     if (!point) return;
     setSaveTarget({ kind, lat: point.lat, lng: point.lng, address: point.label });
     setSaveLabel('');
+    setSaveError('');
   };
 
   // ── Obstacle loading ─────────────────────────────────────────────────────
@@ -817,43 +825,14 @@ export default function MapView() {
 
       {/* Save place modal */}
       {saveTarget && (
-        <View style={s.prefsOverlay}>
-          <View style={s.prefsCard}>
-            <Text style={s.prefsTitle}>Save Location</Text>
-            <Text style={s.prefsSubtitle}>Choose a label for this place.</Text>
-            <View style={s.presetRow}>
-              {['Home', 'Work'].map((preset) => (
-                <TouchableOpacity
-                  key={preset}
-                  style={[s.presetChip, saveLabel === preset && s.presetChipActive]}
-                  onPress={() => setSaveLabel(preset)}
-                >
-                  <Text style={[s.presetChipText, saveLabel === preset && s.presetChipTextActive]}>{preset}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput
-              style={[s.slopeInput, { width: '100%', textAlign: 'left', paddingHorizontal: 12 }]}
-              placeholder="Custom label"
-              placeholderTextColor={COLORS.gray400}
-              value={saveLabel}
-              onChangeText={setSaveLabel}
-              maxLength={50}
-            />
-            <TouchableOpacity
-              style={[s.prefsCalcBtn, (!saveLabel.trim() || savingPlace) && { backgroundColor: COLORS.gray300 }]}
-              onPress={handleSavePlace}
-              disabled={!saveLabel.trim() || savingPlace}
-            >
-              {savingPlace
-                ? <ActivityIndicator size="small" color={COLORS.white} />
-                : <><Ionicons name="bookmark-outline" size={16} color={COLORS.white} /><Text style={s.prefsCalcBtnText}>Save</Text></>}
-            </TouchableOpacity>
-            <TouchableOpacity style={s.prefsCancelBtn} onPress={() => setSaveTarget(null)}>
-              <Text style={s.prefsCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <SavePlaceModal
+          label={saveLabel}
+          onLabelChange={(t) => { setSaveLabel(t); setSaveError(''); }}
+          saving={savingPlace}
+          error={saveError}
+          onSave={handleSavePlace}
+          onCancel={() => { setSaveTarget(null); setSaveError(''); }}
+        />
       )}
 
       {/* Guest preferences overlay */}
