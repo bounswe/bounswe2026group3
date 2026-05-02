@@ -257,7 +257,7 @@ from uuid import uuid4
 
 from django.test import override_settings
 
-from apps.reports.models import Interaction, InteractionType
+from apps.reports.models import Interaction, InteractionType, StatusChange
 from apps.users.models import UserRole
 
 
@@ -306,7 +306,7 @@ class ReportUpvoteViewTest(TestCase):
         self.assertEqual(data["status"], ReportStatus.UNVERIFIED)
         self.assertFalse(data["autoVerified"])
 
-    def test_duplicate_upvote_is_idempotent(self):
+    def test_second_upvote_removes_upvote(self):
         voter = self._voter(1)
         self.client.force_authenticate(user=voter)
 
@@ -316,12 +316,31 @@ class ReportUpvoteViewTest(TestCase):
         self.assertEqual(first.status_code, status.HTTP_200_OK)
         self.assertEqual(second.status_code, status.HTTP_200_OK)
         self.assertEqual(first.json()["upvoteCount"], 1)
-        self.assertEqual(second.json()["upvoteCount"], 1)
+        self.assertTrue(first.json()["userUpvoted"])
+        self.assertEqual(second.json()["upvoteCount"], 0)
+        self.assertFalse(second.json()["userUpvoted"])
         self.assertEqual(
             Interaction.objects.filter(
                 report=self.report, interaction_type=InteractionType.UPVOTE
             ).count(),
-            1,
+            0,
+        )
+
+    def test_cannot_upvote_a_flagged_report(self):
+        voter = self._voter(1)
+        self.client.force_authenticate(user=voter)
+        Interaction.objects.create(
+            report=self.report, user=voter, interaction_type=InteractionType.FLAG
+        )
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(
+            Interaction.objects.filter(
+                report=self.report, user=voter, interaction_type=InteractionType.UPVOTE
+            ).count(),
+            0,
         )
 
     def test_standard_reporter_transitions_above_threshold(self):
@@ -413,54 +432,42 @@ from django.utils import timezone
 from apps.reports.models import StatusChange
 
 
-@override_settings(SPAM_FLAG_THRESHOLD=3)
 class ReportFlagViewTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.reporter = make_user(email="reporter@test.com")
-        self.report = make_report(self.reporter, status=ReportStatus.VERIFIED)
+        self.report = make_report(self.reporter)
         self.url = f"/api/reports/{self.report.id}/flag/"
 
     def _flagger(self, n):
         return make_user(email=f"flagger{n}@test.com")
+
+    def test_author_cannot_flag_own_report_403(self):
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Interaction.objects.filter(report=self.report).count(), 0)
+
 
     def test_anonymous_returns_401(self):
         response = self.client.post(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_unknown_report_returns_404(self):
-        self.client.force_authenticate(user=self._flagger(0))
+        self.client.force_authenticate(user=self._flagger(1))
         response = self.client.post(f"/api/reports/{uuid4()}/flag/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_upvoter_cannot_flag_same_report(self):
-        voter = self._flagger(1)
-        Interaction.objects.create(
-            report=self.report, user=voter, interaction_type=InteractionType.UPVOTE
-        )
-        self.client.force_authenticate(user=voter)
-        response = self.client.post(self.url)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_flag_increments_count(self):
-        flagger = self._flagger(2)
+    def test_first_flag_returns_count_and_state(self):
+        flagger = self._flagger(1)
         self.client.force_authenticate(user=flagger)
+
         response = self.client.post(self.url)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertIn("reportId", data)
-        self.assertIn("flagCount", data)
-        self.assertIn("queuedForModeration", data)
         self.assertEqual(data["flagCount"], 1)
-        self.assertFalse(data["queuedForModeration"])
-
-    def test_idempotent_flag_does_not_double_count(self):
-        flagger = self._flagger(3)
-        self.client.force_authenticate(user=flagger)
-        self.client.post(self.url)
-        response = self.client.post(self.url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.json()["flagCount"], 1)
+        self.assertTrue(data["userFlagged"])
         self.assertEqual(
             Interaction.objects.filter(
                 report=self.report, interaction_type=InteractionType.FLAG
@@ -468,24 +475,50 @@ class ReportFlagViewTest(TestCase):
             1,
         )
 
-    def test_queued_for_moderation_at_threshold(self):
+    def test_second_flag_removes_flag(self):
+        flagger = self._flagger(1)
+        self.client.force_authenticate(user=flagger)
+
+        first = self.client.post(self.url)
+        second = self.client.post(self.url)
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(first.json()["flagCount"], 1)
+        self.assertTrue(first.json()["userFlagged"])
+        self.assertEqual(second.json()["flagCount"], 0)
+        self.assertFalse(second.json()["userFlagged"])
+        self.assertEqual(
+            Interaction.objects.filter(
+                report=self.report, interaction_type=InteractionType.FLAG
+            ).count(),
+            0,
+        )
+
+    def test_cannot_flag_an_upvoted_report(self):
+        flagger = self._flagger(1)
+        self.client.force_authenticate(user=flagger)
+        Interaction.objects.create(
+            report=self.report, user=flagger, interaction_type=InteractionType.UPVOTE
+        )
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(
+            Interaction.objects.filter(
+                report=self.report, user=flagger, interaction_type=InteractionType.FLAG
+            ).count(),
+            0,
+        )
+
+    def test_multiple_users_can_flag_independently(self):
         for i in range(3):
-            flagger = self._flagger(i + 10)
+            flagger = self._flagger(i)
             self.client.force_authenticate(user=flagger)
             response = self.client.post(self.url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
-        self.assertEqual(data["flagCount"], 3)
-        self.assertTrue(data["queuedForModeration"])
-
-    def test_not_queued_below_threshold(self):
-        for i in range(2):
-            flagger = self._flagger(i + 20)
-            self.client.force_authenticate(user=flagger)
-            response = self.client.post(self.url)
-
-        self.assertFalse(response.json()["queuedForModeration"])
+            self.assertEqual(response.json()["flagCount"], i + 1)
+            self.assertTrue(response.json()["userFlagged"])
 
 
 # ---------------------------------------------------------------------------
