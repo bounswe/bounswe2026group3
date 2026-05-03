@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
-import { useRouter, Link } from 'expo-router';
+import { useRouter, Link, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
 import { login, setTokens, parseDRFError } from '../../src/services/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { reset } = useLocalSearchParams<{ reset?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -46,6 +47,12 @@ export default function LoginScreen() {
         </View>
         <View style={s.card}>
           <View style={s.cardTitleRow}><Ionicons name="lock-closed-outline" size={18} color={COLORS.green600} /><Text style={s.cardTitle}>Sign In</Text></View>
+          {reset === 'success' && (
+            <View style={s.successBanner}>
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.green600} />
+              <Text style={s.successBannerText}>Password reset successfully. Sign in with your new password.</Text>
+            </View>
+          )}
           {!!apiError && (<View style={s.apiBanner}><Ionicons name="close-circle" size={18} color={COLORS.red600} /><Text style={s.apiBannerText}>{apiError}</Text></View>)}
           <Text style={s.label}>EMAIL</Text>
           <TextInput style={[s.input, errors.email && s.inputError]} placeholder="your@email.com" placeholderTextColor={COLORS.gray400} value={email} onChangeText={t => { setEmail(t); setErrors(p => ({...p, email: ''})); }} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
@@ -77,6 +84,8 @@ const s = StyleSheet.create({
   card: { backgroundColor: COLORS.white, marginHorizontal: 14, marginTop: 14, borderRadius: 14, padding: 18, borderWidth: 1, borderColor: COLORS.gray200 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.gray800 },
+  successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.green50, padding: 12, borderRadius: 10, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(22,163,74,0.15)' },
+  successBannerText: { fontSize: 13, color: COLORS.green600, fontWeight: '500', flex: 1 },
   apiBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.red50, padding: 12, borderRadius: 10, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)' },
   apiBannerText: { fontSize: 13, color: COLORS.red600, fontWeight: '500', flex: 1 },
   label: { fontSize: 12, fontWeight: '700', color: COLORS.gray600, letterSpacing: 0.5, marginBottom: 5 },
