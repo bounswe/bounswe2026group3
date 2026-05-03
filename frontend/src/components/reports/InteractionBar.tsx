@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import type { ObstacleDetail } from '../../api/map';
 import { postUpvote, postFlag } from '../../api/interactions';
+import { isLoggedIn } from '../../services/auth';
 
 export interface InteractionBarProps {
   reportId: string;
@@ -111,6 +112,9 @@ export default function InteractionBar({
       userFlagged: typeof res.data.userFlagged === 'boolean' ? res.data.userFlagged : nextFlagged,
     });
   }
+
+  // Guests don't see upvote/flag buttons at all (Issue #90 AC #3).
+  if (!isLoggedIn()) return null;
 
   if (isOwn) {
     return (

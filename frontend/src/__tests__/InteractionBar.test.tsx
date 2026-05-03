@@ -4,6 +4,13 @@ import { Alert } from 'react-native';
 import InteractionBar from '../components/reports/InteractionBar';
 import * as interactionsApi from '../api/interactions';
 
+// Logged-in by default — InteractionBar early-returns null for guests
+// (Issue #90 AC #3); guest behavior is covered in InteractionBarGuest.test.tsx.
+jest.mock('../services/auth', () => ({
+  __esModule: true,
+  isLoggedIn: () => true,
+}));
+
 jest.mock('../api/interactions');
 const mockPostUpvote = interactionsApi.postUpvote as jest.MockedFunction<typeof interactionsApi.postUpvote>;
 const mockPostFlag = interactionsApi.postFlag as jest.MockedFunction<typeof interactionsApi.postFlag>;
@@ -178,17 +185,4 @@ it('shows disabled views and hides interactive buttons when user is the reporter
   expect(getByTestId('flag-disabled')).toBeTruthy();
   expect(queryByTestId('upvote-button')).toBeNull();
   expect(queryByTestId('flag-button')).toBeNull();
-});
-
-it('shows a sign-in alert and does not call the API when a guest taps upvote', () => {
-  const alertSpy = jest.spyOn(Alert, 'alert');
-  const { getByTestId } = render(<InteractionBar {...BASE_PROPS} currentUserId="" />);
-
-  fireEvent.press(getByTestId('upvote-button'));
-
-  expect(alertSpy).toHaveBeenCalledWith(
-    expect.stringContaining('Sign in'),
-    expect.any(String),
-  );
-  expect(mockPostUpvote).not.toHaveBeenCalled();
 });
