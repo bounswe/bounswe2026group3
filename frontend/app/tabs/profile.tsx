@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
 import { getMe, updateMe, clearTokens, isLoggedIn, parseDRFError, UserProfile } from '../../src/services/auth';
 import { MobilityProfileCard } from '../../src/components/profile/MobilityProfileCard';
+import { TrustedContributorBadge } from '../../src/components/profile/TrustedContributorBadge';
 import { getSavedPlaces, deleteSavedPlace, SavedPlace } from '../../src/api/savedPlaces';
 
 function getInitials(name: string): string {
@@ -76,10 +77,18 @@ export default function ProfileScreen() {
             <Text style={s.email}>{user?.email || '—'}</Text>
             <View style={s.badgeRow}>
               <View style={[s.badge, s.badgeGreen]}><Ionicons name="shield-checkmark" size={12} color={COLORS.green700} /><Text style={[s.badgeText, { color: COLORS.green700 }]}>{user?.status || 'ACTIVE'}</Text></View>
-              <View style={[s.badge, s.badgeAmber]}><Ionicons name="star" size={12} color={COLORS.orange500} /><Text style={[s.badgeText, { color: COLORS.orange500 }]}>Trust: {user?.trustScore ?? 0}</Text></View>
+              {user?.role === 'TRUSTED_CONTRIBUTOR' && <TrustedContributorBadge />}
             </View>
           </View>
           <TouchableOpacity style={s.editBtn} onPress={() => { setEditing(!editing); setEditError(''); }}><Ionicons name="create-outline" size={16} color={COLORS.gray500} /></TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={s.card}>
+        <View style={s.cardTitleRow}><Ionicons name="star" size={16} color={COLORS.orange500} /><Text style={s.cardTitle}>Trust Score</Text></View>
+        <View style={s.trustRow}>
+          <Text testID="trust-score-value" style={s.trustValue}>{user?.trustScore ?? 0}</Text>
+          <Text style={s.trustHint}>Earned from helpful reports and community contributions.</Text>
         </View>
       </View>
 
@@ -160,6 +169,9 @@ const s = StyleSheet.create({
   badgeGreen: { backgroundColor: COLORS.green100 },
   badgeAmber: { backgroundColor: COLORS.orange100 },
   badgeText: { fontSize: 11, fontWeight: '700' },
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  trustValue: { fontSize: 32, fontWeight: '800', color: COLORS.green700, minWidth: 56 },
+  trustHint: { flex: 1, fontSize: 12, color: COLORS.gray500, lineHeight: 17 },
   editBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.gray100, borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 12, fontWeight: '700', color: COLORS.gray600, letterSpacing: 0.5, marginBottom: 5 },
   input: { borderWidth: 1.5, borderColor: COLORS.gray300, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: COLORS.gray900, backgroundColor: COLORS.white },

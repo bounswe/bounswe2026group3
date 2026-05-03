@@ -57,7 +57,8 @@ export interface RegisterPayload { email: string; fullName: string; password: st
 export interface RegisterResponse { userId: string; email: string; fullName: string; status: string; trustScore: number; accessToken: string; refreshToken: string; createdAt: string; }
 export interface LoginPayload { email: string; password: string; }
 export interface LoginResponse { access: string; refresh: string; }
-export interface UserProfile { userId: string; email: string; fullName: string; status: string; trustScore: number; createdAt: string; }
+export type UserRole = 'USER' | 'TRUSTED_CONTRIBUTOR' | 'ADMIN' | string;
+export interface UserProfile { userId: string; email: string; fullName: string; status: string; trustScore: number; role: UserRole; createdAt: string; }
 
 export function parseDRFError(data: any): string {
   if (!data) return 'Something went wrong.';
@@ -89,6 +90,7 @@ export async function getMe() {
   if (res.ok) {
     data.trustScore = data.trustScore ?? data.reputationPoints ?? 0;
     data.status = data.status ?? data.accountStatus ?? 'ACTIVE';
+    data.role = data.role ?? 'USER';
   }
   return { ok: res.ok, status: res.status, data };
 }
