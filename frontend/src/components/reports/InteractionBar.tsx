@@ -5,7 +5,7 @@ function showAlert(title: string, message: string) {
   if (Platform.OS === 'web') {
     window.alert(`${title}\n\n${message}`);
   } else {
-    showAlert(title, message);
+    Alert.alert(title, message);
   }
 }
 import { Ionicons } from '@expo/vector-icons';
@@ -72,7 +72,7 @@ export default function InteractionBar({
       userUpvoted: typeof res.data.userUpvoted === 'boolean' ? res.data.userUpvoted : nextUpvoted,
     };
     if (res.data.status && VALID_STATUSES.has(res.data.status)) {
-      patch.status = res.data.status;
+      patch.status = res.data.status as ObstacleDetail['status'];
     }
     onUpdate(patch);
   }
