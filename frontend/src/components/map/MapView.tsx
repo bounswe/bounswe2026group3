@@ -81,6 +81,9 @@ const MAP_HTML = `<!DOCTYPE html>
     markers = [];
     var currentZoom = map.getZoom();
     obstacles.forEach(function(obs) {
+      // Hide CLOSED reports on every render so an in-session status update
+      // to CLOSED removes the marker without a full map reload.
+      if (obs.status === 'CLOSED') return;
       if (obs.isIndoor && currentZoom < ${HIGH_DETAIL_ZOOM}) return;
       var isPassive = obs.status === 'PASSIVE';
       var color = CATEGORY_COLOR[obs.category] || '#9CA3AF';

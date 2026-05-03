@@ -15,7 +15,7 @@ import {
 } from 'react-leaflet';
 
 import {
-  fetchObstacleDetail, fetchObstacles, searchLocations,
+  fetchObstacleDetail, fetchObstacles, filterVisibleObstacles, searchLocations,
   type Obstacle, type ObstacleDetail, type SearchResult,
 } from '../../api/map';
 import { calculateRoute, type GuestPreferences, type RouteResult } from '../../api/routes';
@@ -517,8 +517,9 @@ export default function MapView() {
           <FlyTo target={flyTarget} />
           <FitRoute waypoints={route?.waypoints ?? null} />
 
-          {/* Obstacle markers */}
-          {obstacles.map((obs) => {
+          {/* Obstacle markers — re-applied every render so an in-session
+              status update to CLOSED removes the marker without a reload. */}
+          {filterVisibleObstacles(obstacles).map((obs) => {
             if (obs.isIndoor && zoom < HIGH_DETAIL_ZOOM) return null;
             const isPassive = obs.status === 'PASSIVE';
             const color = CATEGORY_COLOR[obs.category] ?? COLORS.gray500;
