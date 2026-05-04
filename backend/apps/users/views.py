@@ -71,6 +71,12 @@ class MeView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request):
+        return self._update(request)
+
+    def patch(self, request):
+        return self._update(request)
+
+    def _update(self, request):
         serializer = UserProfileUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()

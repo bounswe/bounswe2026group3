@@ -64,6 +64,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=AccountStatus.ACTIVE,
     )
     reputation_points = models.IntegerField(default=0)
+    notifications_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

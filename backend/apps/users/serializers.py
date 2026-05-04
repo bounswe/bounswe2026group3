@@ -106,13 +106,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
     birthDate = serializers.DateField(source='birth_date', read_only=True)
     accountStatus = serializers.CharField(source='account_status', read_only=True)
     reputationPoints = serializers.IntegerField(source='reputation_points', read_only=True)
+    notificationsEnabled = serializers.BooleanField(source='notifications_enabled', read_only=True)
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     mobilityProfile = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['userId', 'email', 'fullName', 'birthDate', 'role',
-                  'accountStatus', 'reputationPoints', 'createdAt', 'mobilityProfile']
+                  'accountStatus', 'reputationPoints', 'notificationsEnabled',
+                  'createdAt', 'mobilityProfile']
 
     def get_mobilityProfile(self, obj):
         try:
@@ -125,11 +127,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserProfileUpdateSerializer(serializers.Serializer):
     fullName = serializers.CharField(source='full_name', max_length=255, required=False)
     birthDate = serializers.DateField(source='birth_date', required=False)
+    notificationsEnabled = serializers.BooleanField(source='notifications_enabled', required=False)
 
     def update(self, instance, validated_data):
-        instance.full_name = validated_data.get('full_name', instance.full_name)
-        instance.birth_date = validated_data.get('birth_date', instance.birth_date)
-        instance.save(update_fields=['full_name', 'birth_date'])
+        update_fields = []
+        if 'full_name' in validated_data:
+            instance.full_name = validated_data['full_name']
+            update_fields.append('full_name')
+        if 'birth_date' in validated_data:
+            instance.birth_date = validated_data['birth_date']
+            update_fields.append('birth_date')
+        if 'notifications_enabled' in validated_data:
+            instance.notifications_enabled = validated_data['notifications_enabled']
+            update_fields.append('notifications_enabled')
+        if update_fields:
+            instance.save(update_fields=update_fields)
         return instance
 
 
