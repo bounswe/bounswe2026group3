@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'apps.interactions',
     'apps.map',
     'apps.notifications',
+    'apps.places',
     'apps.reports',
     'apps.routing',
     'apps.trust_scores',
