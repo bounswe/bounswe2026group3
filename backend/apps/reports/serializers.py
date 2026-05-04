@@ -42,3 +42,9 @@ class UpvoteResponseSerializer(serializers.Serializer):
     upvoteCount = serializers.IntegerField()
     status = serializers.CharField()
     autoVerified = serializers.BooleanField()
+
+
+class FlagResponseSerializer(serializers.Serializer):
+    reportId = serializers.UUIDField()
+    flagCount = serializers.IntegerField()
+    queuedForModeration = serializers.BooleanField()
