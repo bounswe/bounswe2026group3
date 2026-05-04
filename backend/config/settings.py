@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'apps.interactions',
     'apps.map',
     'apps.notifications',
+    'apps.places',
     'apps.reports',
     'apps.routing',
     'apps.trust_scores',
@@ -139,6 +140,7 @@ TRUSTED_REPUTATION_THRESHOLD = config('TRUSTED_REPUTATION_THRESHOLD', default=50
 AUTO_VERIFY_UPVOTE_THRESHOLD = config('AUTO_VERIFY_UPVOTE_THRESHOLD', default=5, cast=int)
 AUTO_VERIFY_TRUSTED_UPVOTE_THRESHOLD = config('AUTO_VERIFY_TRUSTED_UPVOTE_THRESHOLD', default=3, cast=int)
 RESOLUTION_CONFIRMATION_THRESHOLD = config('RESOLUTION_CONFIRMATION_THRESHOLD', default=3, cast=int)
+REPORT_DECAY_DAYS = config('REPORT_DECAY_DAYS', default=30, cast=int)
 
 PASSWORD_RESET_EXPIRY_MINUTES = config('PASSWORD_RESET_EXPIRY_MINUTES', default=30, cast=int)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')

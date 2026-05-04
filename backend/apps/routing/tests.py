@@ -120,8 +120,9 @@ class CalculateRouteViewTest(TestCase):
         self.assertEqual(data['avoidedObstaclesCount'], 0)
         self.assertTrue(data['isAccessible'])
 
-    def test_passive_reports_excluded(self, mock_valhalla, mock_verified, mock_unverified):
-        # Passive reports are excluded by _get_verified_obstacles query (status='VERIFIED')
+    def test_passive_reports_excluded_with_empty_mocks(self, mock_valhalla, mock_verified, mock_unverified):
+        # Smoke check: with mocked obstacle queries returning [], no obstacles surface.
+        # See PassiveReportRoutingExclusionTest below for the DB-level regression test.
         response = self.client.post(self.url, make_valid_payload(), format='json')
         data = response.json()
         self.assertEqual(data['avoidedObstaclesCount'], 0)
@@ -173,3 +174,61 @@ class CalculateRouteFailureTest(TestCase):
         data = response.json()
         self.assertIn('error', data)
         self.assertEqual(data['error']['code'], 'ROUTE_ERROR')
+
+
+class PassiveReportRoutingExclusionTest(TestCase):
+    """Regression: PASSIVE reports must be excluded from route avoidance and warnings.
+
+    Unlike CalculateRouteViewTest above, this class does NOT mock the obstacle
+    queries — it exercises the real DB filters in `_get_verified_obstacles` and
+    `_get_unverified_obstacles` so that PASSIVE-status filtering is genuinely covered.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/api/routes/calculate'
+        self.reporter = make_reporter()
+
+    def _make_report(self, *, status_value, title, lat, lng):
+        from apps.reports.models import ObstacleCategory, Report, ReportContext
+        return Report.objects.create(
+            reporter=self.reporter,
+            title=title,
+            description='',
+            category=ObstacleCategory.BROKEN_RAMP,
+            context=ReportContext.OUTDOOR,
+            status=status_value,
+            latitude=lat,
+            longitude=lng,
+        )
+
+    @patch('apps.routing.services._call_valhalla', side_effect=mock_call_valhalla)
+    def test_passive_obstacle_does_not_appear_in_warnings_or_avoidance(self, mock_valhalla):
+        from apps.reports.models import ReportStatus
+
+        # Both points are within OBSTACLE_PROXIMITY_RADIUS_M (40m) of MOCK_WAYPOINTS.
+        passive = self._make_report(
+            status_value=ReportStatus.PASSIVE,
+            title='Decayed obstacle',
+            lat='41.083500', lng='29.050500',
+        )
+        verified = self._make_report(
+            status_value=ReportStatus.VERIFIED,
+            title='Active obstacle',
+            lat='41.084000', lng='29.050000',
+        )
+
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        # The verified obstacle proves the routing engine is wired up to the DB.
+        self.assertTrue(any('Active obstacle' in w for w in data['warnings']))
+        # The PASSIVE one must not appear in warnings…
+        self.assertFalse(any('Decayed obstacle' in w for w in data['warnings']))
+
+        # …and must not be passed to Valhalla as exclude_locations either.
+        excluded = mock_valhalla.call_args.kwargs.get('exclude_locations') or []
+        excluded_ids = {str(loc.get('id')) for loc in excluded}
+        self.assertIn(str(verified.id), excluded_ids)
+        self.assertNotIn(str(passive.id), excluded_ids)

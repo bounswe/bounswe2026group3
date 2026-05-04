@@ -531,3 +531,129 @@ class ConfirmResolutionViewTest(TestCase):
             StatusChange.objects.filter(report=self.report).count(),
             initial_status_change_count,
         )
+
+
+# ---------------------------------------------------------------------------
+# Management command: decay_unverified_reports
+# ---------------------------------------------------------------------------
+
+from datetime import timedelta
+from io import StringIO
+
+from django.core.management import call_command
+from django.utils import timezone
+
+
+def _backdate(report, days):
+    """Bypass auto_now_add by updating created_at directly."""
+    new_created = timezone.now() - timedelta(days=days)
+    Report.objects.filter(pk=report.pk).update(created_at=new_created)
+    report.refresh_from_db()
+
+
+@override_settings(REPORT_DECAY_DAYS=30)
+class DecayUnverifiedReportsCommandTest(TestCase):
+    def setUp(self):
+        self.reporter = make_user(email="decay-reporter@test.com")
+
+    def _run(self, *args):
+        out = StringIO()
+        call_command('decay_unverified_reports', *args, stdout=out)
+        return out.getvalue()
+
+    def test_stale_unverified_with_no_interactions_decays_to_passive(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+
+        self._run()
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.PASSIVE)
+
+    def test_status_change_recorded_with_auto_decayed_reason(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+
+        self._run()
+
+        change = StatusChange.objects.get(report=report)
+        self.assertEqual(change.old_status, ReportStatus.UNVERIFIED)
+        self.assertEqual(change.new_status, ReportStatus.PASSIVE)
+        self.assertEqual(change.reason, 'Auto-decayed')
+        self.assertEqual(change.changed_by, self.reporter)
+
+    def test_recent_unverified_is_not_decayed(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=10)
+
+        self._run()
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+
+    def test_unverified_with_upvote_is_not_decayed(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+        voter = make_user(email="upvoter@test.com")
+        Interaction.objects.create(
+            report=report, user=voter, interaction_type=InteractionType.UPVOTE,
+        )
+
+        self._run()
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+
+    def test_verified_report_is_not_decayed(self):
+        report = make_report(self.reporter, status=ReportStatus.VERIFIED)
+        _backdate(report, days=60)
+
+        self._run()
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.VERIFIED)
+
+    def test_already_passive_report_is_not_touched(self):
+        report = make_report(self.reporter, status=ReportStatus.PASSIVE)
+        _backdate(report, days=60)
+
+        self._run()
+
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+
+    def test_idempotent_second_run_does_not_create_duplicate_status_change(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+
+        self._run()
+        self._run()
+
+        self.assertEqual(StatusChange.objects.filter(report=report).count(), 1)
+
+    def test_dry_run_does_not_modify_database(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+
+        output = self._run('--dry-run')
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+        self.assertIn('dry-run', output)
+
+    def test_threshold_boundary_uses_settings(self):
+        # With REPORT_DECAY_DAYS=30, a report aged exactly 29 days stays UNVERIFIED,
+        # 31 days decays.
+        recent = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(recent, days=29)
+        old = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(old, days=31)
+
+        self._run()
+
+        recent.refresh_from_db()
+        old.refresh_from_db()
+        self.assertEqual(recent.status, ReportStatus.UNVERIFIED)
+        self.assertEqual(old.status, ReportStatus.PASSIVE)

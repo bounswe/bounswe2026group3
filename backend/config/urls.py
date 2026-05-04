@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/admin/', include('apps.admin.urls')),
     path('api/authority/', include('apps.authority.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
+    path('api/users/me/saved-places/', include('apps.places.urls')),
 ]
