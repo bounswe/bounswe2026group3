@@ -1,0 +1,47 @@
+from django.db import transaction
+
+from apps.reports.models import Report, ReportStatus, StatusChange
+from apps.reports.signals import report_status_changed
+
+
+class ReportAlreadyResolvedError(Exception):
+    """Raised when an authority tries to resolve a report that is already resolved or closed."""
+
+
+@transaction.atomic
+def resolve_report(*, actor, report_id, repair_photo_url: str, repair_notes: str = '') -> Report:
+    """Mark a report as RESOLVED_AWAITING_VALIDATION.
+
+    Records a StatusChange entry and emits report_status_changed so notifications
+    fire after commit. Raises Report.DoesNotExist or ReportAlreadyResolvedError.
+    """
+    report = Report.objects.select_for_update().get(pk=report_id)
+
+    if report.status in (ReportStatus.RESOLVED_AWAITING_VALIDATION, ReportStatus.CLOSED):
+        raise ReportAlreadyResolvedError()
+
+    old_status = report.status
+    report.status = ReportStatus.RESOLVED_AWAITING_VALIDATION
+    report.save(update_fields=['status', 'updated_at'])
+
+    reason = f'repair_photo_url: {repair_photo_url}'
+    if repair_notes:
+        reason = f'{reason}; notes: {repair_notes}'
+
+    StatusChange.objects.create(
+        report=report,
+        changed_by=actor,
+        old_status=old_status,
+        new_status=ReportStatus.RESOLVED_AWAITING_VALIDATION,
+        reason=reason,
+    )
+
+    report_status_changed.send(
+        sender=Report,
+        report=report,
+        old_status=old_status,
+        new_status=ReportStatus.RESOLVED_AWAITING_VALIDATION,
+        actor=actor,
+    )
+
+    return report

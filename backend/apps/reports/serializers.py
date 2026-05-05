@@ -48,3 +48,9 @@ class FlagResponseSerializer(serializers.Serializer):
     reportId = serializers.UUIDField()
     flagCount = serializers.IntegerField()
     queuedForModeration = serializers.BooleanField()
+
+
+class ConfirmResolutionResponseSerializer(serializers.Serializer):
+    reportId = serializers.UUIDField()
+    confirmationCount = serializers.IntegerField()
+    status = serializers.CharField()

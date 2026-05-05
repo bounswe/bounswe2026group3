@@ -403,7 +403,14 @@ class ReportUpvoteViewTest(TestCase):
 # ---------------------------------------------------------------------------
 
 from uuid import uuid4
+from datetime import timedelta
+from io import StringIO
+
 from django.test import override_settings
+from django.core.management import call_command
+from django.utils import timezone
+
+from apps.reports.models import StatusChange
 
 
 @override_settings(SPAM_FLAG_THRESHOLD=3)
@@ -479,3 +486,230 @@ class ReportFlagViewTest(TestCase):
             response = self.client.post(self.url)
 
         self.assertFalse(response.json()["queuedForModeration"])
+
+
+# ---------------------------------------------------------------------------
+# View + Service: POST /api/reports/<id>/confirm-resolution/
+# ---------------------------------------------------------------------------
+
+@override_settings(RESOLUTION_CONFIRMATION_THRESHOLD=3)
+class ConfirmResolutionViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.reporter = make_user(email="reporter@test.com")
+        self.report = make_report(
+            self.reporter, status=ReportStatus.RESOLVED_AWAITING_VALIDATION
+        )
+        self.url = f"/api/reports/{self.report.id}/confirm-resolution/"
+
+    def _upvoter(self, n):
+        voter = make_user(email=f"voter{n}@test.com")
+        Interaction.objects.create(
+            report=self.report,
+            user=voter,
+            interaction_type=InteractionType.UPVOTE,
+        )
+        return voter
+
+    def test_anonymous_returns_401(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unknown_report_returns_404(self):
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(f"/api/reports/{uuid4()}/confirm-resolution/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_wrong_status_returns_409(self):
+        self.report.status = ReportStatus.VERIFIED
+        self.report.save()
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_non_eligible_user_returns_403(self):
+        outsider = make_user(email="outsider@test.com")
+        self.client.force_authenticate(user=outsider)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_reporter_can_confirm(self):
+        self.client.force_authenticate(user=self.reporter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIn("reportId", data)
+        self.assertIn("confirmationCount", data)
+        self.assertIn("status", data)
+        self.assertEqual(data["confirmationCount"], 1)
+
+    def test_upvoter_can_confirm(self):
+        voter = self._upvoter(1)
+        self.client.force_authenticate(user=voter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["confirmationCount"], 1)
+
+    def test_idempotent_confirm_does_not_double_count(self):
+        voter = self._upvoter(1)
+        self.client.force_authenticate(user=voter)
+        self.client.post(self.url)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["confirmationCount"], 1)
+        self.assertEqual(
+            Interaction.objects.filter(
+                report=self.report,
+                interaction_type=InteractionType.CONFIRM_RESOLUTION,
+            ).count(),
+            1,
+        )
+
+    def test_transitions_to_closed_at_threshold(self):
+        voters = [self._upvoter(i) for i in range(2)]
+
+        self.client.force_authenticate(user=self.reporter)
+        self.client.post(self.url)
+
+        for voter in voters[:1]:
+            self.client.force_authenticate(user=voter)
+            response = self.client.post(self.url)
+            self.assertEqual(response.json()["status"], ReportStatus.RESOLVED_AWAITING_VALIDATION)
+
+        self.client.force_authenticate(user=voters[1])
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["status"], ReportStatus.CLOSED)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.CLOSED)
+
+    def test_status_change_recorded_on_closure(self):
+        voters = [self._upvoter(i) for i in range(3)]
+        for voter in voters:
+            self.client.force_authenticate(user=voter)
+            self.client.post(self.url)
+
+        self.assertTrue(
+            StatusChange.objects.filter(
+                report=self.report,
+                old_status=ReportStatus.RESOLVED_AWAITING_VALIDATION,
+                new_status=ReportStatus.CLOSED,
+            ).exists()
+        )
+
+    def test_no_double_closure_on_idempotent_call_after_closed(self):
+        voters = [self._upvoter(i) for i in range(3)]
+        for voter in voters:
+            self.client.force_authenticate(user=voter)
+            self.client.post(self.url)
+
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, ReportStatus.CLOSED)
+
+        self.report.status = ReportStatus.RESOLVED_AWAITING_VALIDATION
+        self.report.save()
+
+        initial_status_change_count = StatusChange.objects.filter(report=self.report).count()
+        self.client.force_authenticate(user=voters[0])
+        self.client.post(self.url)
+        self.assertEqual(
+            StatusChange.objects.filter(report=self.report).count(),
+            initial_status_change_count,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Management command: decay_unverified_reports
+# ---------------------------------------------------------------------------
+
+def _backdate(report, days):
+    """Bypass auto_now_add by updating created_at directly."""
+    new_created = timezone.now() - timedelta(days=days)
+    Report.objects.filter(pk=report.pk).update(created_at=new_created)
+    report.refresh_from_db()
+
+
+@override_settings(REPORT_DECAY_DAYS=30)
+class DecayUnverifiedReportsCommandTest(TestCase):
+    def setUp(self):
+        self.reporter = make_user(email="decay-reporter@test.com")
+
+    def _run(self, *args):
+        out = StringIO()
+        call_command('decay_unverified_reports', *args, stdout=out)
+        return out.getvalue()
+
+    def test_stale_unverified_with_no_interactions_decays_to_passive(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+        self._run()
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.PASSIVE)
+
+    def test_status_change_recorded_with_auto_decayed_reason(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+        self._run()
+        change = StatusChange.objects.get(report=report)
+        self.assertEqual(change.old_status, ReportStatus.UNVERIFIED)
+        self.assertEqual(change.new_status, ReportStatus.PASSIVE)
+        self.assertEqual(change.reason, 'Auto-decayed')
+        self.assertEqual(change.changed_by, self.reporter)
+
+    def test_recent_unverified_is_not_decayed(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=10)
+        self._run()
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+
+    def test_unverified_with_upvote_is_not_decayed(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+        voter = make_user(email="upvoter@test.com")
+        Interaction.objects.create(report=report, user=voter, interaction_type=InteractionType.UPVOTE)
+        self._run()
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+
+    def test_verified_report_is_not_decayed(self):
+        report = make_report(self.reporter, status=ReportStatus.VERIFIED)
+        _backdate(report, days=60)
+        self._run()
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.VERIFIED)
+
+    def test_already_passive_report_is_not_touched(self):
+        report = make_report(self.reporter, status=ReportStatus.PASSIVE)
+        _backdate(report, days=60)
+        self._run()
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+
+    def test_idempotent_second_run_does_not_create_duplicate_status_change(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+        self._run()
+        self._run()
+        self.assertEqual(StatusChange.objects.filter(report=report).count(), 1)
+
+    def test_dry_run_does_not_modify_database(self):
+        report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(report, days=31)
+        output = self._run('--dry-run')
+        report.refresh_from_db()
+        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
+        self.assertFalse(StatusChange.objects.filter(report=report).exists())
+        self.assertIn('dry-run', output)
+
+    def test_threshold_boundary_uses_settings(self):
+        recent = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(recent, days=29)
+        old = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
+        _backdate(old, days=31)
+        self._run()
+        recent.refresh_from_db()
+        old.refresh_from_db()
+        self.assertEqual(recent.status, ReportStatus.UNVERIFIED)
+        self.assertEqual(old.status, ReportStatus.PASSIVE)
