@@ -11,7 +11,7 @@ from apps.reports.models import (
     ReportContext,
     ReportStatus,
 )
-from apps.users.models import User, UserRole
+from apps.users.models import AccountStatus, User, UserRole
 
 
 def make_admin(email="admin@test.com"):
@@ -146,3 +146,140 @@ class DeleteReportAsMaliciousServiceTest(TestCase):
         self.reporter.refresh_from_db()
         self.assertEqual(self.reporter.reputation_points, 10)
         self.assertTrue(Report.objects.filter(pk=self.report.id).exists())
+
+
+# ---------------------------------------------------------------------------
+# View: POST /api/admin/users/<uuid>/suspend/
+# ---------------------------------------------------------------------------
+
+class SuspendUserViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = make_admin()
+        self.target = make_reporter()
+        self.url = f"/api/admin/users/{self.target.id}/suspend/"
+
+    def test_admin_suspends_user(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data['accountStatus'], AccountStatus.SUSPENDED)
+        self.assertIn('userId', data)
+        self.assertIn('reason', data)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.account_status, AccountStatus.SUSPENDED)
+
+    def test_suspend_with_reason(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(self.url, {'reason': 'Abusive behaviour'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['reason'], 'Abusive behaviour')
+
+    def test_anonymous_returns_401(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_non_admin_returns_403(self):
+        self.client.force_authenticate(user=self.target)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unknown_user_returns_404(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(f"/api/admin/users/{uuid4()}/suspend/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_suspended_user_gets_403_on_protected_endpoint(self):
+        self.client.force_authenticate(user=self.admin)
+        self.client.post(self.url)
+        # Now try a protected endpoint as the suspended user
+        self.client.force_authenticate(user=self.target)
+        report = make_report(self.target)
+        upvote_url = f"/api/reports/{report.id}/upvote/"
+        response = self.client.post(upvote_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ---------------------------------------------------------------------------
+# View: POST /api/admin/users/<uuid>/ban/
+# ---------------------------------------------------------------------------
+
+class BanUserViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = make_admin()
+        self.target = make_reporter()
+        self.url = f"/api/admin/users/{self.target.id}/ban/"
+
+    def test_admin_bans_user(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data['accountStatus'], AccountStatus.BANNED)
+        self.assertIn('userId', data)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.account_status, AccountStatus.BANNED)
+
+    def test_ban_with_reason(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(self.url, {'reason': 'Spam'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['reason'], 'Spam')
+
+    def test_anonymous_returns_401(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_non_admin_returns_403(self):
+        self.client.force_authenticate(user=self.target)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unknown_user_returns_404(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(f"/api/admin/users/{uuid4()}/ban/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_banned_user_gets_403_on_protected_endpoint(self):
+        self.client.force_authenticate(user=self.admin)
+        self.client.post(self.url)
+        self.client.force_authenticate(user=self.target)
+        report = make_report(self.target)
+        upvote_url = f"/api/reports/{report.id}/upvote/"
+        response = self.client.post(upvote_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ---------------------------------------------------------------------------
+# Service: suspend_user / ban_user
+# ---------------------------------------------------------------------------
+
+class SuspendBanServiceTest(TestCase):
+    def setUp(self):
+        self.user = make_reporter()
+
+    def test_suspend_sets_status(self):
+        from apps.admin.services import suspend_user
+        result = suspend_user(self.user.id, reason='test')
+        self.assertEqual(result['accountStatus'], AccountStatus.SUSPENDED)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.account_status, AccountStatus.SUSPENDED)
+
+    def test_ban_sets_status(self):
+        from apps.admin.services import ban_user
+        result = ban_user(self.user.id, reason='test')
+        self.assertEqual(result['accountStatus'], AccountStatus.BANNED)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.account_status, AccountStatus.BANNED)
+
+    def test_suspend_unknown_raises(self):
+        from apps.admin.services import suspend_user
+        with self.assertRaises(User.DoesNotExist):
+            suspend_user(uuid4())
+
+    def test_ban_unknown_raises(self):
+        from apps.admin.services import ban_user
+        with self.assertRaises(User.DoesNotExist):
+            ban_user(uuid4())
