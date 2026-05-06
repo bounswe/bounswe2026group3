@@ -5,10 +5,13 @@ from rest_framework import status
 from apps.core.permissions import IsUser
 
 from .models import Report
-from .serializers import ReportSerializer, ReportResponseSerializer, UpvoteResponseSerializer, ConfirmResolutionResponseSerializer
+from .serializers import (
+    ReportSerializer, ReportResponseSerializer, UpvoteResponseSerializer,
+    FlagResponseSerializer, ConfirmResolutionResponseSerializer,
+)
 from .services import (
-    SelfUpvoteError, NotEligibleToConfirmError, ReportNotAwaitingValidationError,
-    create_report, detect_duplicate, auto_verify, register_upvote, register_resolution_confirmation,
+    SelfUpvoteError, AlreadyUpvotedError, NotEligibleToConfirmError, ReportNotAwaitingValidationError,
+    create_report, detect_duplicate, auto_verify, register_upvote, register_flag, register_resolution_confirmation,
 )
 
 
@@ -48,6 +51,25 @@ class ReportUpvoteView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         return Response(UpvoteResponseSerializer(result).data, status=status.HTTP_200_OK)
+
+
+class ReportFlagView(APIView):
+    permission_classes = [IsUser]
+
+    def post(self, request, report_id):
+        try:
+            result = register_flag(request.user, report_id)
+        except Report.DoesNotExist:
+            return Response(
+                {'detail': 'Report not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except AlreadyUpvotedError:
+            return Response(
+                {'detail': 'You cannot flag a report you have already upvoted.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(FlagResponseSerializer(result).data, status=status.HTTP_200_OK)
 
 
 class ConfirmResolutionView(APIView):

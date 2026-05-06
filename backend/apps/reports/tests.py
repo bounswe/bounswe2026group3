@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.users.models import User
-from apps.reports.models import Report, Photo, ReportStatus, ObstacleCategory, ReportContext
+from apps.reports.models import Report, Photo, ReportStatus, ObstacleCategory, ReportContext, Interaction, InteractionType
 
 
 def make_user(email="user@test.com"):
@@ -399,11 +399,98 @@ class ReportUpvoteViewTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# View + Service: POST /api/reports/<id>/confirm-resolution/
+# View + Service: POST /api/reports/<id>/flag/
 # ---------------------------------------------------------------------------
 
-from apps.reports.models import Interaction, InteractionType, StatusChange
+from uuid import uuid4
+from datetime import timedelta
+from io import StringIO
 
+from django.test import override_settings
+from django.core.management import call_command
+from django.utils import timezone
+
+from apps.reports.models import StatusChange
+
+
+@override_settings(SPAM_FLAG_THRESHOLD=3)
+class ReportFlagViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.reporter = make_user(email="reporter@test.com")
+        self.report = make_report(self.reporter, status=ReportStatus.VERIFIED)
+        self.url = f"/api/reports/{self.report.id}/flag/"
+
+    def _flagger(self, n):
+        return make_user(email=f"flagger{n}@test.com")
+
+    def test_anonymous_returns_401(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unknown_report_returns_404(self):
+        self.client.force_authenticate(user=self._flagger(0))
+        response = self.client.post(f"/api/reports/{uuid4()}/flag/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_upvoter_cannot_flag_same_report(self):
+        voter = self._flagger(1)
+        Interaction.objects.create(
+            report=self.report, user=voter, interaction_type=InteractionType.UPVOTE
+        )
+        self.client.force_authenticate(user=voter)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_flag_increments_count(self):
+        flagger = self._flagger(2)
+        self.client.force_authenticate(user=flagger)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertIn("reportId", data)
+        self.assertIn("flagCount", data)
+        self.assertIn("queuedForModeration", data)
+        self.assertEqual(data["flagCount"], 1)
+        self.assertFalse(data["queuedForModeration"])
+
+    def test_idempotent_flag_does_not_double_count(self):
+        flagger = self._flagger(3)
+        self.client.force_authenticate(user=flagger)
+        self.client.post(self.url)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["flagCount"], 1)
+        self.assertEqual(
+            Interaction.objects.filter(
+                report=self.report, interaction_type=InteractionType.FLAG
+            ).count(),
+            1,
+        )
+
+    def test_queued_for_moderation_at_threshold(self):
+        for i in range(3):
+            flagger = self._flagger(i + 10)
+            self.client.force_authenticate(user=flagger)
+            response = self.client.post(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data["flagCount"], 3)
+        self.assertTrue(data["queuedForModeration"])
+
+    def test_not_queued_below_threshold(self):
+        for i in range(2):
+            flagger = self._flagger(i + 20)
+            self.client.force_authenticate(user=flagger)
+            response = self.client.post(self.url)
+
+        self.assertFalse(response.json()["queuedForModeration"])
+
+
+# ---------------------------------------------------------------------------
+# View + Service: POST /api/reports/<id>/confirm-resolution/
+# ---------------------------------------------------------------------------
 
 @override_settings(RESOLUTION_CONFIRMATION_THRESHOLD=3)
 class ConfirmResolutionViewTest(TestCase):
@@ -479,7 +566,6 @@ class ConfirmResolutionViewTest(TestCase):
         )
 
     def test_transitions_to_closed_at_threshold(self):
-        # threshold = 3: reporter + 2 upvoters
         voters = [self._upvoter(i) for i in range(2)]
 
         self.client.force_authenticate(user=self.reporter)
@@ -523,7 +609,6 @@ class ConfirmResolutionViewTest(TestCase):
         self.report.status = ReportStatus.RESOLVED_AWAITING_VALIDATION
         self.report.save()
 
-        # Already-confirmed user calls again — idempotent, no second StatusChange
         initial_status_change_count = StatusChange.objects.filter(report=self.report).count()
         self.client.force_authenticate(user=voters[0])
         self.client.post(self.url)
@@ -536,13 +621,6 @@ class ConfirmResolutionViewTest(TestCase):
 # ---------------------------------------------------------------------------
 # Management command: decay_unverified_reports
 # ---------------------------------------------------------------------------
-
-from datetime import timedelta
-from io import StringIO
-
-from django.core.management import call_command
-from django.utils import timezone
-
 
 def _backdate(report, days):
     """Bypass auto_now_add by updating created_at directly."""
@@ -564,18 +642,14 @@ class DecayUnverifiedReportsCommandTest(TestCase):
     def test_stale_unverified_with_no_interactions_decays_to_passive(self):
         report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(report, days=31)
-
         self._run()
-
         report.refresh_from_db()
         self.assertEqual(report.status, ReportStatus.PASSIVE)
 
     def test_status_change_recorded_with_auto_decayed_reason(self):
         report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(report, days=31)
-
         self._run()
-
         change = StatusChange.objects.get(report=report)
         self.assertEqual(change.old_status, ReportStatus.UNVERIFIED)
         self.assertEqual(change.new_status, ReportStatus.PASSIVE)
@@ -585,9 +659,7 @@ class DecayUnverifiedReportsCommandTest(TestCase):
     def test_recent_unverified_is_not_decayed(self):
         report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(report, days=10)
-
         self._run()
-
         report.refresh_from_db()
         self.assertEqual(report.status, ReportStatus.UNVERIFIED)
         self.assertFalse(StatusChange.objects.filter(report=report).exists())
@@ -596,12 +668,8 @@ class DecayUnverifiedReportsCommandTest(TestCase):
         report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(report, days=31)
         voter = make_user(email="upvoter@test.com")
-        Interaction.objects.create(
-            report=report, user=voter, interaction_type=InteractionType.UPVOTE,
-        )
-
+        Interaction.objects.create(report=report, user=voter, interaction_type=InteractionType.UPVOTE)
         self._run()
-
         report.refresh_from_db()
         self.assertEqual(report.status, ReportStatus.UNVERIFIED)
         self.assertFalse(StatusChange.objects.filter(report=report).exists())
@@ -609,50 +677,38 @@ class DecayUnverifiedReportsCommandTest(TestCase):
     def test_verified_report_is_not_decayed(self):
         report = make_report(self.reporter, status=ReportStatus.VERIFIED)
         _backdate(report, days=60)
-
         self._run()
-
         report.refresh_from_db()
         self.assertEqual(report.status, ReportStatus.VERIFIED)
 
     def test_already_passive_report_is_not_touched(self):
         report = make_report(self.reporter, status=ReportStatus.PASSIVE)
         _backdate(report, days=60)
-
         self._run()
-
         self.assertFalse(StatusChange.objects.filter(report=report).exists())
 
     def test_idempotent_second_run_does_not_create_duplicate_status_change(self):
         report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(report, days=31)
-
         self._run()
         self._run()
-
         self.assertEqual(StatusChange.objects.filter(report=report).count(), 1)
 
     def test_dry_run_does_not_modify_database(self):
         report = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(report, days=31)
-
         output = self._run('--dry-run')
-
         report.refresh_from_db()
         self.assertEqual(report.status, ReportStatus.UNVERIFIED)
         self.assertFalse(StatusChange.objects.filter(report=report).exists())
         self.assertIn('dry-run', output)
 
     def test_threshold_boundary_uses_settings(self):
-        # With REPORT_DECAY_DAYS=30, a report aged exactly 29 days stays UNVERIFIED,
-        # 31 days decays.
         recent = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(recent, days=29)
         old = make_report(self.reporter, status=ReportStatus.UNVERIFIED)
         _backdate(old, days=31)
-
         self._run()
-
         recent.refresh_from_db()
         old.refresh_from_db()
         self.assertEqual(recent.status, ReportStatus.UNVERIFIED)

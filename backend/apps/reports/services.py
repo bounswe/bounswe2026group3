@@ -104,6 +104,10 @@ class SelfUpvoteError(Exception):
     """Raised when a user attempts to upvote their own report."""
 
 
+class AlreadyUpvotedError(Exception):
+    """Raised when a user tries to flag a report they have already upvoted."""
+
+
 class NotEligibleToConfirmError(Exception):
     """Raised when a user is neither the reporter nor an upvoter."""
 
@@ -175,6 +179,42 @@ def register_upvote(user, report_id) -> dict:
         'upvoteCount': upvote_count,
         'status': report.status,
         'autoVerified': auto_verified,
+    }
+
+
+@transaction.atomic
+def register_flag(user, report_id) -> dict:
+    """Record a spam flag on a report. Idempotent: re-calling does not double-count.
+
+    - Raises Report.DoesNotExist for an unknown id.
+    - Raises AlreadyUpvotedError if the caller has previously upvoted this report.
+    - Returns queuedForModeration=True when flagCount reaches SPAM_FLAG_THRESHOLD.
+    """
+    report = Report.objects.select_for_update().get(pk=report_id)
+
+    has_upvoted = Interaction.objects.filter(
+        report=report,
+        user=user,
+        interaction_type=InteractionType.UPVOTE,
+    ).exists()
+    if has_upvoted:
+        raise AlreadyUpvotedError()
+
+    Interaction.objects.get_or_create(
+        report=report,
+        user=user,
+        interaction_type=InteractionType.FLAG,
+    )
+
+    flag_count = Interaction.objects.filter(
+        report=report,
+        interaction_type=InteractionType.FLAG,
+    ).count()
+
+    return {
+        'reportId': report.id,
+        'flagCount': flag_count,
+        'queuedForModeration': flag_count >= settings.SPAM_FLAG_THRESHOLD,
     }
 
 
