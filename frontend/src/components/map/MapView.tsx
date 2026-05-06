@@ -274,6 +274,9 @@ export default function MapView() {
   const source = useMemo(() => ({ html: MAP_HTML }), []);
   const prefetchedRef = useRef<Obstacle[] | null>(null);
 
+  // Filter state
+  const [showPassive, setShowPassive] = useState(false);
+
   const { location: currentLocation } = useLocation();
 
   // ── Saved places ─────────────────────────────────────────────────────────
@@ -333,9 +336,14 @@ export default function MapView() {
   const loadObstacles = useCallback(async (
     bbox: { north: number; south: number; east: number; west: number },
   ) => {
-    const data = await fetchObstacles(bbox, false);
-    pushObstacles(data, false);
-  }, [pushObstacles]);
+    const data = await fetchObstacles(bbox, showPassive);
+    pushObstacles(data, showPassive);
+  }, [pushObstacles, showPassive]);
+
+  useEffect(() => {
+    if (!currentBoundsRef.current || !readyRef.current) return;
+    loadObstacles(currentBoundsRef.current);
+  }, [showPassive, loadObstacles]);
 
   // ── Autocomplete for main search ─────────────────────────────────────────
 
@@ -808,6 +816,17 @@ export default function MapView() {
           )}
         </View>
 
+        {/* Passive toggle chip */}
+        <TouchableOpacity
+          style={[s.passiveChip, showPassive && s.passiveChipActive]}
+          onPress={() => setShowPassive((v) => !v)}
+        >
+          <Ionicons name="layers-outline" size={13} color={showPassive ? COLORS.white : COLORS.gray600} />
+          <Text style={[s.passiveChipText, showPassive && { color: COLORS.white }]}>
+            {showPassive ? 'Showing inactive' : 'Show inactive'}
+          </Text>
+        </TouchableOpacity>
+
         {/* Pin mode banner */}
         {pinMode && (
           <View style={s.pinBanner}>
@@ -1105,4 +1124,15 @@ const s = StyleSheet.create({
   prefsCalcBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
   prefsCancelBtn: { alignItems: 'center', paddingVertical: 4 },
   prefsCancelText: { fontSize: 14, color: COLORS.gray400 },
+
+  passiveChip: {
+    position: 'absolute', bottom: 80, left: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 11, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1, borderColor: COLORS.gray200,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 4, elevation: 3,
+  },
+  passiveChipActive: { backgroundColor: COLORS.green700, borderColor: COLORS.green700 },
+  passiveChipText: { fontSize: 12, fontWeight: '600', color: COLORS.gray600 },
 });
