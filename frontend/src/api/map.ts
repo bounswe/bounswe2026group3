@@ -52,14 +52,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   OTHER: 'Other',
 };
 
-/**
- * Statuses that must never render as map markers, regardless of any other
- * filter (including `includePassive`). CLOSED reports are resolved/archived
- * and should not appear on the map.
- *
- * Applied at the fetch boundary AND at render time so that an in-session
- * status update to CLOSED removes the marker without a full map reload.
- */
 export const HIDDEN_OBSTACLE_STATUSES: ReadonlyArray<Obstacle['status']> = ['CLOSED'];
 
 export function filterVisibleObstacles(obstacles: Obstacle[]): Obstacle[] {
@@ -94,7 +86,6 @@ export async function fetchObstacles(
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
     const list = Array.isArray(data) ? data : (data.obstacles ?? data.results ?? []);
-    // Drop CLOSED reports defensively even if the backend returns them.
     return filterVisibleObstacles(list.map(mapObstacle));
   } catch {
     return [];
