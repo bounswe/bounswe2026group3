@@ -287,3 +287,85 @@ class PasswordResetConfirmViewTest(TestCase):
             self.url, {'token': 'validtoken123', 'password': '123'}, format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ---------------------------------------------------------------------------
+# View: GET/POST/PUT /api/users/me/mobility-profile
+# ---------------------------------------------------------------------------
+
+MOBILITY_URL = '/api/users/me/mobility-profile'
+
+
+class MobilityProfileViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email='user@test.com', full_name='Test User', password='SecureP@ss123',
+        )
+        self.valid_payload = {
+            'mobilityAid': 'WHEELCHAIR',
+            'avoidStairs': True,
+            'avoidSteepSlopes': True,
+            'maxSlopeGradient': 8.0,
+        }
+
+    def test_get_returns_404_when_no_profile(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(MOBILITY_URL)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_create_profile(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(MOBILITY_URL, self.valid_payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertEqual(data['mobilityAid'], 'WHEELCHAIR')
+        self.assertTrue(data['avoidStairs'])
+        self.assertTrue(data['avoidSteepSlopes'])
+        self.assertEqual(data['maxSlopeGradient'], 8.0)
+        self.assertIn('profileId', data)
+        self.assertIn('createdAt', data)
+
+    def test_get_returns_profile_after_create(self):
+        self.client.force_authenticate(user=self.user)
+        self.client.post(MOBILITY_URL, self.valid_payload, format='json')
+        response = self.client.get(MOBILITY_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['mobilityAid'], 'WHEELCHAIR')
+
+    def test_create_duplicate_returns_409(self):
+        self.client.force_authenticate(user=self.user)
+        self.client.post(MOBILITY_URL, self.valid_payload, format='json')
+        response = self.client.post(MOBILITY_URL, self.valid_payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+
+    def test_update_profile(self):
+        self.client.force_authenticate(user=self.user)
+        self.client.post(MOBILITY_URL, self.valid_payload, format='json')
+        updated = {
+            'mobilityAid': 'ELECTRIC_WHEELCHAIR',
+            'avoidStairs': False,
+            'avoidSteepSlopes': False,
+            'maxSlopeGradient': 5.0,
+        }
+        response = self.client.put(MOBILITY_URL, updated, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data['mobilityAid'], 'ELECTRIC_WHEELCHAIR')
+        self.assertFalse(data['avoidStairs'])
+        self.assertEqual(data['maxSlopeGradient'], 5.0)
+
+    def test_update_returns_404_when_no_profile(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.put(MOBILITY_URL, self.valid_payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_unauthenticated_returns_401(self):
+        response = self.client.get(MOBILITY_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_invalid_mobility_aid_returns_400(self):
+        self.client.force_authenticate(user=self.user)
+        payload = {**self.valid_payload, 'mobilityAid': 'JETPACK'}
+        response = self.client.post(MOBILITY_URL, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

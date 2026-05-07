@@ -145,6 +145,35 @@ class UserProfileUpdateSerializer(serializers.Serializer):
         return instance
 
 
+class MobilityProfileInputSerializer(serializers.Serializer):
+    mobilityAid = serializers.ChoiceField(
+        choices=MobilityAidType.choices, source='mobility_aid_type',
+    )
+    avoidStairs = serializers.BooleanField(
+        source='avoid_stairs', required=False, default=False,
+    )
+    avoidSteepSlopes = serializers.BooleanField(
+        source='avoid_steep_slopes', required=False, default=False,
+    )
+    maxSlopeGradient = serializers.FloatField(
+        source='max_slope_gradient', required=False, default=None, allow_null=True,
+    )
+
+
+class MobilityProfileOutputSerializer(serializers.ModelSerializer):
+    profileId = serializers.UUIDField(source='id', read_only=True)
+    mobilityAid = serializers.CharField(source='mobility_aid_type', read_only=True)
+    avoidStairs = serializers.BooleanField(source='avoid_stairs', read_only=True)
+    avoidSteepSlopes = serializers.BooleanField(source='avoid_steep_slopes', read_only=True)
+    maxSlopeGradient = serializers.FloatField(source='max_slope_gradient', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+
+    class Meta:
+        model = MobilityProfile
+        fields = ['profileId', 'mobilityAid', 'avoidStairs', 'avoidSteepSlopes',
+                  'maxSlopeGradient', 'createdAt']
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

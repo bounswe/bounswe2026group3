@@ -6,7 +6,7 @@ import { MobilityProfile, MobilityProfilePayload } from '../types/mobilityProfil
  * Set MOCK = true while the backend endpoints are not yet implemented.
  * Flip to false once GET/POST/PUT /users/me/mobility-profile are live.
  */
-export const MOCK = true;
+export const MOCK = false;
 
 // ── In-memory mock store ───────────────────────────────────────────────────
 let _mockProfile: MobilityProfile | null = null;
