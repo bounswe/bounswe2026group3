@@ -74,7 +74,7 @@ export default function NotificationsScreen() {
 
   if (notificationsEnabled === false) {
     return (
-      <View style={s.center}>
+      <View style={s.center} testID="notifications-disabled">
         <Ionicons name="notifications-off-outline" size={48} color={COLORS.gray300} />
         <Text style={s.disabledTitle}>Notifications are off</Text>
         <Text style={s.disabledSub}>
@@ -93,7 +93,7 @@ export default function NotificationsScreen() {
       <Text style={s.heading}>Notifications</Text>
 
       {notifications.length === 0 ? (
-        <View style={s.empty}>
+        <View style={s.empty} testID="notifications-empty">
           <Ionicons name="notifications-outline" size={48} color={COLORS.gray300} />
           <Text style={s.emptyText}>No notifications yet</Text>
           <Text style={s.emptySub}>Status updates on your reports will appear here.</Text>
@@ -102,6 +102,7 @@ export default function NotificationsScreen() {
         notifications.map((item) => (
           <TouchableOpacity
             key={item.id}
+            testID={`notification-item-${item.id}`}
             style={[s.item, !item.isRead && s.itemUnread]}
             onPress={() => handleTap(item)}
             activeOpacity={0.75}
