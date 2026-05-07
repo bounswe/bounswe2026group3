@@ -1,4 +1,13 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+function showAlert(title: string, message: string) {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+}
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import type { ObstacleDetail } from '../../api/map';
@@ -15,52 +24,92 @@ export interface InteractionBarProps {
   onUpdate: (patch: Partial<ObstacleDetail>) => void;
 }
 
+const VALID_STATUSES = new Set([
+  'UNVERIFIED', 'PASSIVE', 'VERIFIED', 'RESOLVED_AWAITING_VALIDATION', 'CLOSED',
+]);
+
 export default function InteractionBar({
   reportId, reporterId, upvoteCount, flagCount,
   userUpvoted, userFlagged, currentUserId, onUpdate,
 }: InteractionBarProps) {
+  const [upvoting, setUpvoting] = useState(false);
+  const [flagging, setFlagging] = useState(false);
+
   const isOwn = currentUserId !== '' && currentUserId === reporterId;
   const isGuest = currentUserId === '';
 
   async function handleUpvote() {
     if (isGuest) {
-      Alert.alert('Sign in to vote', 'You need to be logged in to upvote reports.');
+      showAlert('Sign in to vote', 'You need to be logged in to upvote reports.');
       return;
     }
-    onUpdate({ upvoteCount: upvoteCount + 1, userUpvoted: true });
+    if (userFlagged) {
+      showAlert('Cannot upvote', 'You have already flagged this report. Remove your flag first.');
+      return;
+    }
+    if (upvoting) return;
+
+    const nextUpvoted = !userUpvoted;
+    const nextCount = nextUpvoted ? upvoteCount + 1 : upvoteCount - 1;
+    onUpdate({ upvoteCount: nextCount, userUpvoted: nextUpvoted });
+
+    setUpvoting(true);
     const res = await postUpvote(reportId);
+    setUpvoting(false);
+
     if (!res.ok) {
-      onUpdate({ upvoteCount, userUpvoted: false });
-      Alert.alert('Something went wrong', 'Could not upvote. Please try again.');
+      onUpdate({ upvoteCount, userUpvoted });
+      if (res.status === 409) {
+        showAlert('Cannot upvote', 'You have already flagged this report. Remove your flag first.');
+      } else {
+        showAlert('Something went wrong', 'Could not upvote. Please try again.');
+      }
       return;
     }
-    if (typeof res.data.upvoteCount === 'number') {
-      const patch: Partial<ObstacleDetail> = {
-        upvoteCount: res.data.upvoteCount,
-        userUpvoted: true,
-      };
-      const next = res.data.status;
-      if (
-        next === 'UNVERIFIED' || next === 'PASSIVE' || next === 'VERIFIED' ||
-        next === 'RESOLVED_AWAITING_VALIDATION' || next === 'CLOSED'
-      ) {
-        patch.status = next;
-      }
-      onUpdate(patch);
+
+    const patch: Partial<ObstacleDetail> = {
+      upvoteCount: typeof res.data.upvoteCount === 'number' ? res.data.upvoteCount : nextCount,
+      userUpvoted: typeof res.data.userUpvoted === 'boolean' ? res.data.userUpvoted : nextUpvoted,
+    };
+    if (res.data.status && VALID_STATUSES.has(res.data.status)) {
+      patch.status = res.data.status as ObstacleDetail['status'];
     }
+    onUpdate(patch);
   }
 
   async function handleFlag() {
     if (isGuest) {
-      Alert.alert('Sign in to vote', 'You need to be logged in to flag reports.');
+      showAlert('Sign in to vote', 'You need to be logged in to flag reports.');
       return;
     }
-    onUpdate({ flagCount: flagCount + 1, userFlagged: true });
-    const res = await postFlag(reportId);
-    if (!res.ok) {
-      onUpdate({ flagCount, userFlagged: false });
-      Alert.alert('Something went wrong', 'Could not flag. Please try again.');
+    if (userUpvoted) {
+      showAlert('Cannot flag', 'You have already upvoted this report. Remove your upvote first.');
+      return;
     }
+    if (flagging) return;
+
+    const nextFlagged = !userFlagged;
+    const nextCount = nextFlagged ? flagCount + 1 : flagCount - 1;
+    onUpdate({ flagCount: nextCount, userFlagged: nextFlagged });
+
+    setFlagging(true);
+    const res = await postFlag(reportId);
+    setFlagging(false);
+
+    if (!res.ok) {
+      onUpdate({ flagCount, userFlagged });
+      if (res.status === 409) {
+        showAlert('Cannot flag', 'You have already upvoted this report. Remove your upvote first.');
+      } else {
+        showAlert('Something went wrong', 'Could not flag. Please try again.');
+      }
+      return;
+    }
+
+    onUpdate({
+      flagCount: typeof res.data.flagCount === 'number' ? res.data.flagCount : nextCount,
+      userFlagged: typeof res.data.userFlagged === 'boolean' ? res.data.userFlagged : nextFlagged,
+    });
   }
 
   if (isOwn) {
@@ -81,23 +130,33 @@ export default function InteractionBar({
 
   return (
     <View style={s.row}>
-      <TouchableOpacity style={s.btn} onPress={handleUpvote} testID="upvote-button">
+      <TouchableOpacity
+        style={[s.btn, upvoting && s.btnDisabled]}
+        onPress={handleUpvote}
+        disabled={upvoting}
+        testID="upvote-button"
+      >
         <Ionicons
           name={userUpvoted ? 'thumbs-up' : 'thumbs-up-outline'}
           size={16}
-          color={userUpvoted ? COLORS.green600 : COLORS.gray600}
+          color={upvoting ? COLORS.gray400 : userUpvoted ? COLORS.green600 : COLORS.gray600}
         />
-        <Text style={[s.count, userUpvoted && s.activeCount]} testID="upvote-count">
+        <Text style={[s.count, !upvoting && userUpvoted && s.activeCount]} testID="upvote-count">
           {upvoteCount}
         </Text>
       </TouchableOpacity>
-      <TouchableOpacity style={s.btn} onPress={handleFlag} testID="flag-button">
+      <TouchableOpacity
+        style={[s.btn, flagging && s.btnDisabled]}
+        onPress={handleFlag}
+        disabled={flagging}
+        testID="flag-button"
+      >
         <Ionicons
           name={userFlagged ? 'flag' : 'flag-outline'}
           size={16}
-          color={userFlagged ? COLORS.red500 : COLORS.gray600}
+          color={flagging ? COLORS.gray400 : userFlagged ? COLORS.red500 : COLORS.gray600}
         />
-        <Text style={[s.count, userFlagged && s.flagActiveCount]} testID="flag-count">
+        <Text style={[s.count, !flagging && userFlagged && s.flagActiveCount]} testID="flag-count">
           {flagCount}
         </Text>
       </TouchableOpacity>
@@ -112,6 +171,7 @@ const s = StyleSheet.create({
     paddingVertical: 6, paddingHorizontal: 10,
     borderRadius: 6, borderWidth: 1, borderColor: COLORS.gray200,
   },
+  btnDisabled: { opacity: 0.5 },
   count: { fontSize: 13, color: COLORS.gray600 },
   activeCount: { color: COLORS.green600 },
   flagActiveCount: { color: COLORS.red500 },
