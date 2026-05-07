@@ -237,11 +237,11 @@ class NotificationListViewTest(TestCase):
         item = response.json()[0]
 
         self.assertEqual(set(item.keys()), {
-            "id", "type", "report_id", "message", "is_read", "created_at",
+            "id", "type", "reportId", "message", "isRead", "createdAt",
         })
         self.assertEqual(item["type"], NotificationType.REPORT_VERIFIED)
-        self.assertEqual(item["report_id"], str(self.report.id))
-        self.assertFalse(item["is_read"])
+        self.assertEqual(item["reportId"], str(self.report.id))
+        self.assertFalse(item["isRead"])
 
 
 class NotificationMarkReadViewTest(TestCase):
@@ -267,7 +267,7 @@ class NotificationMarkReadViewTest(TestCase):
         response = self.client.patch(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.json()["is_read"])
+        self.assertTrue(response.json()["isRead"])
         self.notification.refresh_from_db()
         self.assertTrue(self.notification.is_read)
 
