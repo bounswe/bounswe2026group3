@@ -4,13 +4,6 @@ import { Alert } from 'react-native';
 import InteractionBar from '../components/reports/InteractionBar';
 import * as interactionsApi from '../api/interactions';
 
-// Logged-in by default — InteractionBar early-returns null for guests
-// (Issue #90 AC #3); guest behavior is covered in InteractionBarGuest.test.tsx.
-jest.mock('../services/auth', () => ({
-  __esModule: true,
-  isLoggedIn: () => true,
-}));
-
 jest.mock('../api/interactions');
 const mockPostUpvote = interactionsApi.postUpvote as jest.MockedFunction<typeof interactionsApi.postUpvote>;
 const mockPostFlag = interactionsApi.postFlag as jest.MockedFunction<typeof interactionsApi.postFlag>;
