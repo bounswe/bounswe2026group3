@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
 import type { ObstacleDetail } from '../../api/map';
 import { postUpvote, postFlag } from '../../api/interactions';
-import { isLoggedIn } from '../../services/auth';
 
 export interface InteractionBarProps {
   reportId: string;
@@ -40,10 +39,6 @@ export default function InteractionBar({
   const isGuest = currentUserId === '';
 
   async function handleUpvote() {
-    if (isGuest) {
-      showAlert('Sign in to vote', 'You need to be logged in to upvote reports.');
-      return;
-    }
     if (userFlagged) {
       showAlert('Cannot upvote', 'You have already flagged this report. Remove your flag first.');
       return;
@@ -79,10 +74,6 @@ export default function InteractionBar({
   }
 
   async function handleFlag() {
-    if (isGuest) {
-      showAlert('Sign in to vote', 'You need to be logged in to flag reports.');
-      return;
-    }
     if (userUpvoted) {
       showAlert('Cannot flag', 'You have already upvoted this report. Remove your upvote first.');
       return;
@@ -113,8 +104,21 @@ export default function InteractionBar({
     });
   }
 
-  // Guests don't see upvote/flag buttons at all (Issue #90 AC #3).
-  if (!isLoggedIn()) return null;
+  if (isGuest) {
+    return (
+      <View style={s.row}>
+        <View style={s.disabledBtn} testID="upvote-count-guest">
+          <Ionicons name="thumbs-up-outline" size={16} color={COLORS.gray400} />
+          <Text style={s.disabledCount} testID="upvote-count">{upvoteCount}</Text>
+        </View>
+        <View style={s.disabledBtn} testID="flag-count-guest">
+          <Ionicons name="flag-outline" size={16} color={COLORS.gray400} />
+          <Text style={s.disabledCount} testID="flag-count">{flagCount}</Text>
+        </View>
+        <Text style={s.ownLabel}>Sign in to vote</Text>
+      </View>
+    );
+  }
 
   if (isOwn) {
     return (
