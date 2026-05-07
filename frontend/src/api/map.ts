@@ -52,6 +52,12 @@ const CATEGORY_LABEL: Record<string, string> = {
   OTHER: 'Other',
 };
 
+export const HIDDEN_OBSTACLE_STATUSES: ReadonlyArray<Obstacle['status']> = ['CLOSED'];
+
+export function filterVisibleObstacles(obstacles: Obstacle[]): Obstacle[] {
+  return obstacles.filter((o) => !HIDDEN_OBSTACLE_STATUSES.includes(o.status));
+}
+
 function mapObstacle(raw: any): Obstacle {
   return {
     id: raw.reportId ?? raw.id,
@@ -80,7 +86,7 @@ export async function fetchObstacles(
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
     const list = Array.isArray(data) ? data : (data.obstacles ?? data.results ?? []);
-    return list.map(mapObstacle);
+    return filterVisibleObstacles(list.map(mapObstacle));
   } catch {
     return [];
   }
