@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
-import { getMe, updateMe, clearTokens, isLoggedIn, parseDRFError, UserProfile } from '../../src/services/auth';
+import { getMe, updateMe, patchMe, clearTokens, isLoggedIn, parseDRFError, UserProfile } from '../../src/services/auth';
 import { MobilityProfileCard } from '../../src/components/profile/MobilityProfileCard';
 import { TrustedContributorBadge } from '../../src/components/profile/TrustedContributorBadge';
 import { getSavedPlaces, deleteSavedPlace, SavedPlace } from '../../src/api/savedPlaces';
@@ -26,6 +26,8 @@ export default function ProfileScreen() {
 
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [togglingNotif, setTogglingNotif] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!isLoggedIn()) { router.replace('/auth/login'); return; }
@@ -33,7 +35,7 @@ export default function ProfileScreen() {
     try {
       const res = await getMe();
       if (res.status === 401) { clearTokens(); router.replace('/auth/login'); return; }
-      if (res.ok) { setUser(res.data); setEditName(res.data.fullName); }
+      if (res.ok) { setUser(res.data); setEditName(res.data.fullName); setNotificationsEnabled(res.data.notificationsEnabled ?? true); }
     } catch {}
     finally { setLoadingPage(false); }
   }, [router]);
@@ -49,6 +51,13 @@ export default function ProfileScreen() {
     const ok = await deleteSavedPlace(id);
     if (ok) setSavedPlaces((prev) => prev.filter((p) => p.id !== id));
     setDeletingId(null);
+  }
+
+  async function handleToggleNotifications(value: boolean) {
+    setNotificationsEnabled(value);
+    setTogglingNotif(true);
+    await patchMe({ notificationsEnabled: value });
+    setTogglingNotif(false);
   }
 
   async function handleSave() {
@@ -144,6 +153,23 @@ export default function ProfileScreen() {
         <View style={s.stub}><View style={s.stubTag}><Text style={s.stubTagText}>MILESTONE 2</Text></View><Text style={s.stubP}>Earned badges from contributions and community activity.</Text></View>
       </View>
 
+      <View style={[s.card, { marginBottom: 20 }]}>
+        <View style={s.cardTitleRow}><Ionicons name="notifications-outline" size={16} color={COLORS.green600} /><Text style={s.cardTitle}>Notifications</Text></View>
+        <View style={s.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.toggleLabel}>Push &amp; in-app notifications</Text>
+            <Text style={s.toggleSub}>Receive updates when your report status changes.</Text>
+          </View>
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={handleToggleNotifications}
+            disabled={togglingNotif}
+            trackColor={{ false: COLORS.gray300, true: COLORS.green400 }}
+            thumbColor={notificationsEnabled ? COLORS.green700 : COLORS.gray500}
+          />
+        </View>
+      </View>
+
       <TouchableOpacity style={s.logoutBtn} onPress={() => { clearTokens(); router.replace('/auth/login'); }}><Ionicons name="log-out-outline" size={18} color={COLORS.red600} /><Text style={s.logoutText}>Sign Out</Text></TouchableOpacity>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -192,4 +218,7 @@ const s = StyleSheet.create({
   deleteBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: 14, paddingVertical: 14, borderRadius: 10, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.gray200 },
   logoutText: { fontSize: 14, fontWeight: '600', color: COLORS.red600 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  toggleLabel: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
+  toggleSub: { fontSize: 12, color: COLORS.gray400, marginTop: 2 },
 });
