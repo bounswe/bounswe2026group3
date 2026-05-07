@@ -3,6 +3,8 @@ from django.db import connection
 from django.http import JsonResponse
 from django.urls import include, path
 
+from apps.users.views import MobilityProfileView
+
 
 def health(request):
     try:
@@ -23,4 +25,5 @@ urlpatterns = [
     path('api/authority/', include('apps.authority.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/users/me/saved-places/', include('apps.places.urls')),
+    path('api/users/me/mobility-profile', MobilityProfileView.as_view(), name='mobility-profile'),
 ]
