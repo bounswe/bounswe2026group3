@@ -15,7 +15,7 @@ import {
 } from 'react-leaflet';
 
 import {
-  fetchObstacleDetail, fetchObstacles, searchLocations,
+  fetchObstacleDetail, fetchObstacles, filterVisibleObstacles, searchLocations,
   type Obstacle, type ObstacleDetail, type SearchResult,
 } from '../../api/map';
 import { calculateRoute, type GuestPreferences, type RouteResult } from '../../api/routes';
@@ -210,6 +210,7 @@ export default function MapView() {
   const [boundsKey, setBoundsKey] = useState('');
   const [detailMap, setDetailMap] = useState<Record<string, ObstacleDetail | 'loading'>>({});
   const prefetchedRef = useRef(false);
+  const [showPassive, setShowPassive] = useState(false);
 
   // Search state
   const [query, setQuery] = useState('');
@@ -305,10 +306,10 @@ export default function MapView() {
         east: currentBounds.getEast(),
         west: currentBounds.getWest(),
       },
-      false,
+      showPassive,
     ).then((data) => { if (!cancelled) setObstacles(data); });
     return () => { cancelled = true; };
-  }, [boundsKey]);
+  }, [boundsKey, showPassive]);
 
   const handleBoundsChange = useCallback((b: L.LatLngBounds, z: number) => {
     setCurrentBounds(b);
@@ -517,8 +518,9 @@ export default function MapView() {
           <FlyTo target={flyTarget} />
           <FitRoute waypoints={route?.waypoints ?? null} />
 
-          {/* Obstacle markers */}
-          {obstacles.map((obs) => {
+          {/* Obstacle markers — re-applied every render so an in-session
+              status update to CLOSED removes the marker without a reload. */}
+          {filterVisibleObstacles(obstacles).map((obs) => {
             if (obs.isIndoor && zoom < HIGH_DETAIL_ZOOM) return null;
             const isPassive = obs.status === 'PASSIVE';
             const color = CATEGORY_COLOR[obs.category] ?? COLORS.gray500;
@@ -830,6 +832,19 @@ export default function MapView() {
           )}
         </View>
 
+        {/* Passive toggle chip */}
+        <View style={s.passiveToggleWrap} pointerEvents="box-none">
+          <TouchableOpacity
+            style={[s.passiveChip, showPassive && s.passiveChipActive]}
+            onPress={() => setShowPassive((v) => !v)}
+          >
+            <Ionicons name="layers-outline" size={13} color={showPassive ? COLORS.white : COLORS.gray600} />
+            <Text style={[s.passiveChipText, showPassive && { color: COLORS.white }]}>
+              {showPassive ? 'Showing inactive' : 'Show inactive'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Pin mode banner */}
         {pinMode && (
           <View style={s.pinBanner}>
@@ -1119,4 +1134,15 @@ const s = StyleSheet.create({
   prefsCalcBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
   prefsCancelBtn: { alignItems: 'center', paddingVertical: 4 },
   prefsCancelText: { fontSize: 14, color: COLORS.gray400 },
+
+  passiveToggleWrap: { position: 'absolute', bottom: 80, left: 12 },
+  passiveChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 11, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1, borderColor: COLORS.gray200,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 4, elevation: 3,
+  },
+  passiveChipActive: { backgroundColor: COLORS.green700, borderColor: COLORS.green700 },
+  passiveChipText: { fontSize: 12, fontWeight: '600', color: COLORS.gray600 },
 });

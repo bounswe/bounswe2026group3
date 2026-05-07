@@ -6,6 +6,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.reports.models import (
+    Interaction,
+    InteractionType,
     ObstacleCategory,
     Report,
     ReportContext,
@@ -283,3 +285,79 @@ class SuspendBanServiceTest(TestCase):
         from apps.admin.services import ban_user
         with self.assertRaises(User.DoesNotExist):
             ban_user(uuid4())
+
+
+# ---------------------------------------------------------------------------
+# View: GET /api/admin/reports/moderation-queue/
+# ---------------------------------------------------------------------------
+
+def add_flags(report, count):
+    for i in range(count):
+        user = User.objects.create_user(
+            email=f"flagger_{report.id}_{i}@test.com",
+            full_name="Flagger",
+            password="pass",
+        )
+        Interaction.objects.create(
+            report=report, user=user, interaction_type=InteractionType.FLAG
+        )
+
+
+@override_settings(SPAM_FLAG_THRESHOLD=3)
+class ModerationQueueViewTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = make_admin()
+        self.reporter = make_reporter()
+        self.url = "/api/admin/reports/moderation-queue/"
+
+    def test_anonymous_returns_401(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_non_admin_returns_403(self):
+        other = User.objects.create_user(
+            email="other@test.com", full_name="Other", password="pass"
+        )
+        self.client.force_authenticate(user=other)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_returns_reports_at_threshold(self):
+        report = make_report(self.reporter)
+        add_flags(report, 3)
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data["total"], 1)
+        self.assertEqual(len(data["reports"]), 1)
+
+    def test_excludes_reports_below_threshold(self):
+        report = make_report(self.reporter)
+        add_flags(report, 2)
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.json()["total"], 0)
+
+    def test_response_fields(self):
+        report = make_report(self.reporter)
+        add_flags(report, 3)
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        item = response.json()["reports"][0]
+        for field in ("reportId", "title", "status", "flagCount", "reporterId", "createdAt"):
+            self.assertIn(field, item)
+        self.assertEqual(item["flagCount"], 3)
+        self.assertEqual(item["reporterId"], str(self.reporter.pk))
+
+    def test_multiple_reports_ordered_by_flag_count(self):
+        report_high = make_report(self.reporter)
+        report_low = make_report(self.reporter)
+        add_flags(report_high, 5)
+        add_flags(report_low, 3)
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        items = response.json()["reports"]
+        self.assertEqual(len(items), 2)
+        self.assertGreaterEqual(items[0]["flagCount"], items[1]["flagCount"])

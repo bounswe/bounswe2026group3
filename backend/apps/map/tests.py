@@ -421,3 +421,60 @@ class SearchViewTest(TestCase):
     def test_accessible_without_auth(self):
         response = self.client.get(self.url, {"q": "test"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Issue #182: CLOSED reports excluded from obstacle list and routing
+# ---------------------------------------------------------------------------
+
+class ClosedReportExclusionTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.user = make_user()
+
+    def test_closed_report_excluded_from_bbox_selector(self):
+        from apps.map.selectors import get_obstacles_in_bbox
+        make_report(self.user, report_status=ReportStatus.CLOSED)
+        qs = get_obstacles_in_bbox(41.0820, 29.0490, 41.0850, 29.0530)
+        self.assertEqual(qs.count(), 0)
+
+    def test_closed_report_excluded_from_obstacle_list_api(self):
+        make_report(self.user, report_status=ReportStatus.CLOSED)
+        response = self.client.get("/api/map/obstacles/", {"bbox": BBOX})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["total"], 0)
+
+    def test_closed_report_returns_404_on_detail(self):
+        report = make_report(self.user, report_status=ReportStatus.CLOSED)
+        response = self.client.get(f"/api/map/obstacles/{report.pk}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_verified_report_still_appears_alongside_closed(self):
+        make_report(self.user, report_status=ReportStatus.VERIFIED)
+        make_report(self.user, lat="41.0840", lng="29.0510", report_status=ReportStatus.CLOSED)
+        response = self.client.get("/api/map/obstacles/", {"bbox": BBOX})
+        self.assertEqual(response.json()["total"], 1)
+
+    def test_closed_report_excluded_from_routing_obstacle_set(self):
+        from apps.routing.services import _get_verified_obstacles
+        make_report(self.user, report_status=ReportStatus.CLOSED)
+        obstacles = _get_verified_obstacles()
+        self.assertEqual(len(obstacles), 0)
+
+    def test_status_history_recorded_on_closure(self):
+        from apps.reports.models import StatusChange
+        report = make_report(self.user, report_status=ReportStatus.RESOLVED_AWAITING_VALIDATION)
+        StatusChange.objects.create(
+            report=report,
+            changed_by=self.user,
+            old_status=ReportStatus.RESOLVED_AWAITING_VALIDATION,
+            new_status=ReportStatus.CLOSED,
+            reason='Community resolution confirmed.',
+        )
+        self.assertTrue(
+            StatusChange.objects.filter(
+                report=report,
+                new_status=ReportStatus.CLOSED,
+            ).exists()
+        )

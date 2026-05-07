@@ -6,8 +6,18 @@ from apps.core.permissions import IsAdmin
 from apps.reports.models import Report
 from apps.users.models import User
 
-from .serializers import AccountActionResponseSerializer
-from .services import delete_report_as_malicious, suspend_user, ban_user
+from .selectors import get_moderation_queue
+from .serializers import AccountActionResponseSerializer, ModerationQueueItemSerializer
+from .services import ban_user, delete_report_as_malicious, suspend_user
+
+
+class ModerationQueueView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        reports = get_moderation_queue()
+        serializer = ModerationQueueItemSerializer(reports, many=True)
+        return Response({'reports': serializer.data, 'total': reports.count()})
 
 
 class DeleteReportView(APIView):

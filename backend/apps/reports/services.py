@@ -100,8 +100,18 @@ def auto_verify(report: Report) -> bool:
     pass
 
 
-class SelfUpvoteError(Exception):
-    """Raised when a user attempts to upvote their own report."""
+class SelfInteractionError(Exception):
+    """Raised when a user attempts to interact with their own report."""
+
+SelfUpvoteError = SelfInteractionError
+
+
+class ConflictingInteractionError(Exception):
+    """Raised when a user tries to upvote a report they flagged, or vice versa."""
+
+
+class AlreadyUpvotedError(Exception):
+    """Raised when a user tries to flag a report they have already upvoted."""
 
 
 class NotEligibleToConfirmError(Exception):
@@ -119,62 +129,152 @@ def _upvote_threshold_for(reporter) -> int:
 
 
 @transaction.atomic
-def register_upvote(user, report_id) -> dict:
-    """Record an upvote on a report. Idempotent: re-calling does not double-count.
+def toggle_upvote(user, report_id) -> dict:
+    """Toggle an upvote on a report (add if absent, remove if present).
 
     - Raises Report.DoesNotExist for an unknown id.
-    - Raises SelfUpvoteError if the caller is the report's reporter.
-    - When the upvote count *strictly exceeds* the threshold (picked by reporter role)
-      and the report is still UNVERIFIED, transitions to VERIFIED and awards trust score.
+    - Raises SelfInteractionError if the caller is the report's reporter.
+    - Raises ConflictingInteractionError if the user has flagged the report.
+    - When adding an upvote and the count exceeds the threshold while the report
+      is still UNVERIFIED, transitions to VERIFIED and awards trust score.
     """
     from apps.trust_scores.services import apply_status_change_delta
+    from apps.reports.signals import report_status_changed
 
     report = Report.objects.select_for_update().select_related('reporter').get(pk=report_id)
 
     if report.reporter_id == user.id:
-        raise SelfUpvoteError()
+        raise SelfInteractionError()
 
-    _, created = Interaction.objects.get_or_create(
-        report=report,
-        user=user,
-        interaction_type=InteractionType.UPVOTE,
-    )
+    if Interaction.objects.filter(report=report, user=user, interaction_type=InteractionType.FLAG).exists():
+        raise ConflictingInteractionError()
+
+    try:
+        existing = Interaction.objects.get(
+            report=report, user=user, interaction_type=InteractionType.UPVOTE,
+        )
+        existing.delete()
+        user_upvoted = False
+        auto_verified = False
+    except Interaction.DoesNotExist:
+        Interaction.objects.create(
+            report=report, user=user, interaction_type=InteractionType.UPVOTE,
+        )
+        user_upvoted = True
+        upvote_count_check = Interaction.objects.filter(
+            report=report, interaction_type=InteractionType.UPVOTE,
+        ).count()
+        auto_verified = False
+        if (
+            report.status == ReportStatus.UNVERIFIED
+            and upvote_count_check > _upvote_threshold_for(report.reporter)
+        ):
+            old_status = report.status
+            report.status = ReportStatus.VERIFIED
+            report.save(update_fields=['status', 'updated_at'])
+            apply_status_change_delta(
+                report.reporter,
+                old_status=old_status,
+                new_status=ReportStatus.VERIFIED,
+            )
+            report_status_changed.send(
+                sender=Report,
+                report=report,
+                old_status=old_status,
+                new_status=ReportStatus.VERIFIED,
+                actor=user,
+            )
+            auto_verified = True
 
     upvote_count = Interaction.objects.filter(
-        report=report,
-        interaction_type=InteractionType.UPVOTE,
+        report=report, interaction_type=InteractionType.UPVOTE,
     ).count()
-
-    auto_verified = False
-    if (
-        created
-        and report.status == ReportStatus.UNVERIFIED
-        and upvote_count > _upvote_threshold_for(report.reporter)
-    ):
-        from apps.reports.signals import report_status_changed
-
-        old_status = report.status
-        report.status = ReportStatus.VERIFIED
-        report.save(update_fields=['status', 'updated_at'])
-        apply_status_change_delta(
-            report.reporter,
-            old_status=old_status,
-            new_status=ReportStatus.VERIFIED,
-        )
-        report_status_changed.send(
-            sender=Report,
-            report=report,
-            old_status=old_status,
-            new_status=ReportStatus.VERIFIED,
-            actor=user,
-        )
-        auto_verified = True
 
     return {
         'reportId': report.id,
         'upvoteCount': upvote_count,
+        'userUpvoted': user_upvoted,
         'status': report.status,
         'autoVerified': auto_verified,
+    }
+
+
+# Keep old name as alias so existing imports don't break
+register_upvote = toggle_upvote
+
+
+@transaction.atomic
+def toggle_flag(user, report_id) -> dict:
+    """Toggle a flag on a report (add if absent, remove if present).
+
+    - Raises Report.DoesNotExist for an unknown id.
+    - Raises SelfInteractionError if the caller is the report's reporter.
+    - Raises ConflictingInteractionError if the user has upvoted the report.
+    """
+    report = Report.objects.select_for_update().get(pk=report_id)
+
+    if report.reporter_id == user.id:
+        raise SelfInteractionError()
+
+    if Interaction.objects.filter(report=report, user=user, interaction_type=InteractionType.UPVOTE).exists():
+        raise ConflictingInteractionError()
+
+    try:
+        existing = Interaction.objects.get(
+            report=report, user=user, interaction_type=InteractionType.FLAG,
+        )
+        existing.delete()
+        user_flagged = False
+    except Interaction.DoesNotExist:
+        Interaction.objects.create(
+            report=report, user=user, interaction_type=InteractionType.FLAG,
+        )
+        user_flagged = True
+
+    flag_count = Interaction.objects.filter(
+        report=report, interaction_type=InteractionType.FLAG,
+    ).count()
+
+    return {
+        'reportId': report.id,
+        'flagCount': flag_count,
+        'userFlagged': user_flagged,
+    }
+
+
+@transaction.atomic
+def register_flag(user, report_id) -> dict:
+    """Record a spam flag on a report. Idempotent: re-calling does not double-count.
+
+    - Raises Report.DoesNotExist for an unknown id.
+    - Raises AlreadyUpvotedError if the caller has previously upvoted this report.
+    - Returns queuedForModeration=True when flagCount reaches SPAM_FLAG_THRESHOLD.
+    """
+    report = Report.objects.select_for_update().get(pk=report_id)
+
+    has_upvoted = Interaction.objects.filter(
+        report=report,
+        user=user,
+        interaction_type=InteractionType.UPVOTE,
+    ).exists()
+    if has_upvoted:
+        raise AlreadyUpvotedError()
+
+    Interaction.objects.get_or_create(
+        report=report,
+        user=user,
+        interaction_type=InteractionType.FLAG,
+    )
+
+    flag_count = Interaction.objects.filter(
+        report=report,
+        interaction_type=InteractionType.FLAG,
+    ).count()
+
+    return {
+        'reportId': report.id,
+        'flagCount': flag_count,
+        'queuedForModeration': flag_count >= settings.SPAM_FLAG_THRESHOLD,
     }
 
 
