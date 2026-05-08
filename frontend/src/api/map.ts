@@ -21,8 +21,10 @@ export interface ObstacleDetail extends Obstacle {
   photos: PhotoItem[];
   upvoteCount: number;
   flagCount: number;
+  confirmationCount: number;
   userUpvoted: boolean;
   userFlagged: boolean;
+  userConfirmed: boolean;
   reporterId: string;
 }
 
@@ -109,8 +111,10 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
       })),
       upvoteCount: raw.upvoteCount ?? 0,
       flagCount: raw.flagCount ?? 0,
+      confirmationCount: raw.confirmationCount ?? 0,
       userUpvoted: raw.userUpvoted ?? false,
       userFlagged: raw.userFlagged ?? false,
+      userConfirmed: raw.userConfirmed ?? false,
       reporterId: raw.reporterId ?? '',
     };
   } catch {
