@@ -132,3 +132,79 @@ it('clears the photo when remove is tapped', async () => {
   });
   expect(getByTestId('photo-count').props.children).toBe('photos:0');
 });
+
+it('surfaces a 403 error when the authority lacks permission', async () => {
+  mockResolveReport.mockResolvedValue({
+    ok: false, status: 403, data: { detail: 'forbidden' },
+  });
+  const { getByTestId, getByText, onResolved } = setup();
+
+  await act(async () => { fireEvent.press(getByTestId('mock-add-photo')); });
+  await act(async () => { fireEvent.press(getByTestId('resolve-submit')); });
+
+  expect(getByText('You do not have permission to resolve this report.')).toBeTruthy();
+  expect(onResolved).not.toHaveBeenCalled();
+});
+
+it('surfaces a 404 error when the report no longer exists', async () => {
+  mockResolveReport.mockResolvedValue({
+    ok: false, status: 404, data: { detail: 'not found' },
+  });
+  const { getByTestId, getByText, onResolved } = setup();
+
+  await act(async () => { fireEvent.press(getByTestId('mock-add-photo')); });
+  await act(async () => { fireEvent.press(getByTestId('resolve-submit')); });
+
+  expect(getByText('Report not found.')).toBeTruthy();
+  expect(onResolved).not.toHaveBeenCalled();
+});
+
+it('does not call the API when the user cancels', async () => {
+  const { getByText, onClose } = setup();
+
+  await act(async () => { fireEvent.press(getByText('Cancel')); });
+
+  expect(mockResolveReport).not.toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalled();
+});
+
+it('only calls the API once even if submit is pressed twice quickly', async () => {
+  let resolveSubmit: (v: any) => void = () => {};
+  mockResolveReport.mockImplementation(
+    () => new Promise((r) => { resolveSubmit = r; }),
+  );
+  const { getByTestId } = setup();
+
+  await act(async () => { fireEvent.press(getByTestId('mock-add-photo')); });
+  await act(async () => {
+    fireEvent.press(getByTestId('resolve-submit'));
+    fireEvent.press(getByTestId('resolve-submit'));
+  });
+
+  expect(mockResolveReport).toHaveBeenCalledTimes(1);
+
+  // Resolve the in-flight request so the test exits cleanly.
+  await act(async () => {
+    resolveSubmit({
+      ok: true, status: 200,
+      data: {
+        reportId: 'r1', status: 'RESOLVED_AWAITING_VALIDATION',
+        repairPhotoUrl: 'https://cdn/r1.jpg',
+        updatedAt: '2026-05-08T12:00:00Z',
+      },
+    });
+  });
+});
+
+it('omits repairNotes from the payload when notes are blank', async () => {
+  const { getByTestId } = setup();
+
+  await act(async () => { fireEvent.press(getByTestId('mock-add-photo')); });
+  // notes intentionally left empty
+  await act(async () => { fireEvent.press(getByTestId('resolve-submit')); });
+
+  expect(mockResolveReport).toHaveBeenCalledWith('r1', {
+    repairPhoto: 'BASE64DATA',
+    repairNotes: undefined,
+  });
+});

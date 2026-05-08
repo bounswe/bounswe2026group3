@@ -13,11 +13,13 @@ jest.mock('@expo/vector-icons', () => ({
 const mockRouter = { replace: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+  // Mirror the real useFocusEffect: re-fire whenever the callback identity
+  // changes (the component already wraps it in useCallback with [filter, load]).
   useFocusEffect: (cb: () => void) => {
     const React = require('react');
     React.useEffect(() => {
       cb();
-    }, []);
+    }, [cb]);
   },
 }));
 
