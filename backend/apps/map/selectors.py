@@ -34,7 +34,15 @@ def get_obstacle_detail(report_id):
                 "status_changes__changed_by",
             ).get(
                 pk=report_id,
-                status__in=[ReportStatus.VERIFIED, ReportStatus.PASSIVE],
+                status__in=[
+                    ReportStatus.VERIFIED,
+                    ReportStatus.PASSIVE,
+                    # Citizens need access to RESOLVED_AWAITING_VALIDATION reports so
+                    # they can confirm the repair from a status-change notification,
+                    # and authorities need access to refresh the detail screen after
+                    # they submit a resolution.
+                    ReportStatus.RESOLVED_AWAITING_VALIDATION,
+                ],
             )
         )
     except Report.DoesNotExist:

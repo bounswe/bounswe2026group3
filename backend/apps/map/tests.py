@@ -114,6 +114,16 @@ class GetObstacleDetailTest(TestCase):
         result = get_obstacle_detail(report.pk)
         self.assertIsNone(result)
 
+    def test_returns_resolved_awaiting_validation_report(self):
+        # Citizens hitting "View report" from a status-change notification, and
+        # authorities refreshing the detail screen after resolving, both need
+        # this status to be visible.
+        from apps.map.selectors import get_obstacle_detail
+        report = make_report(self.user, report_status=ReportStatus.RESOLVED_AWAITING_VALIDATION)
+        result = get_obstacle_detail(report.pk)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.pk, report.pk)
+
     def test_returns_none_for_nonexistent(self):
         import uuid
         from apps.map.selectors import get_obstacle_detail
