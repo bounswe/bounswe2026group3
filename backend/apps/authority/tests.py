@@ -268,3 +268,17 @@ class DashboardViewTest(TestCase):
         item = response.json()["reports"][0]
         self.assertEqual(item["location"], {"lat": 41.0837, "lng": 29.051})
         self.assertEqual(item["reporter"]["userId"], str(self.reporter.id))
+
+    def test_thumbnail_uses_oldest_photo_after_resolution(self):
+        """Regression: after a post-repair photo is appended, the dashboard
+        thumbnail must keep showing the original obstacle photo."""
+        Photo.objects.create(report=self.awaiting, image_url='https://cdn/original.jpg')
+        Photo.objects.create(report=self.awaiting, image_url='https://cdn/post-repair.jpg')
+
+        self.client.force_authenticate(user=self.authority)
+        response = self.client.get(
+            self.url, {"status": ReportStatus.RESOLVED_AWAITING_VALIDATION}
+        )
+        items = response.json()["reports"]
+        item = next(i for i in items if i["reportId"] == str(self.awaiting.id))
+        self.assertEqual(item["thumbnailUrl"], 'https://cdn/original.jpg')

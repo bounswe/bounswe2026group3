@@ -81,6 +81,9 @@ class Photo(models.Model):
 
     class Meta:
         db_table = "photos"
+        # Oldest first, so the original obstacle photo stays as the thumbnail
+        # even after a post-repair photo is appended on resolution.
+        ordering = ["uploaded_at"]
 
     def __str__(self):
         return f"Photo for {self.report.title}"
