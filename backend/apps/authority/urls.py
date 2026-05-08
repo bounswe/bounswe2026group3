@@ -5,6 +5,7 @@ from . import views
 app_name = 'authority'
 
 urlpatterns = [
+    path('dashboard', views.DashboardView.as_view(), name='dashboard'),
     path(
         'reports/<uuid:report_id>/resolve',
         views.ResolveReportView.as_view(),
