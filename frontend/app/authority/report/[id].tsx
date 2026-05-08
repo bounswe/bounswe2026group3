@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -33,14 +33,14 @@ export default function AuthorityReportDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [resolveOpen, setResolveOpen] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const res = await fetchObstacleDetail(id as string);
     setDetail(res);
     setLoading(false);
-  }
+  }, [id]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return <View style={s.center}><ActivityIndicator size="large" color={COLORS.green700} /></View>;

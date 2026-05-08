@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -28,9 +28,13 @@ export default function ResolveModal({ visible, reportId, reportTitle, onClose, 
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState('');
+  // Ref-based guard: state updates are async, so a double-tap can re-enter
+  // handleSubmit before `submitting` has flipped to true.
+  const inFlight = useRef(false);
 
   function reset() {
     setPhotos([]); setPhotoError(''); setNotes(''); setApiError(''); setSubmitting(false);
+    inFlight.current = false;
   }
 
   function handleClose() {
@@ -40,17 +44,21 @@ export default function ResolveModal({ visible, reportId, reportTitle, onClose, 
   }
 
   async function handleSubmit() {
+    if (inFlight.current) return;
     setApiError('');
     if (photos.length === 0) {
       setPhotoError('A post-repair photo is required.');
       return;
     }
+    inFlight.current = true;
     setSubmitting(true);
+    const trimmedNotes = notes.trim();
     const res = await resolveReport(reportId, {
       repairPhoto: photos[0].b64,
-      repairNotes: notes.trim(),
+      repairNotes: trimmedNotes || undefined,
     });
     setSubmitting(false);
+    inFlight.current = false;
     if (res.ok) {
       reset();
       onResolved();
@@ -59,7 +67,10 @@ export default function ResolveModal({ visible, reportId, reportTitle, onClose, 
     if (res.status === 409) setApiError('Report is already resolved.');
     else if (res.status === 403) setApiError('You do not have permission to resolve this report.');
     else if (res.status === 404) setApiError('Report not found.');
-    else setApiError((res.data as any).detail || 'Could not submit resolution.');
+    else {
+      const errBody = res.data as { detail?: string };
+      setApiError(errBody.detail || 'Could not submit resolution.');
+    }
   }
 
   return (

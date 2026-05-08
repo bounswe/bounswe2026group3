@@ -49,7 +49,7 @@ export default function ConfirmResolutionButton({
       // RESOLVED_AWAITING_VALIDATION, so we forward both the new status and
       // the new count to the parent screen.
       const newStatus = res.data.status || status;
-      const newCount = (res.data as any).confirmationCount ?? confirmationCount + 1;
+      const newCount = res.data.confirmationCount ?? confirmationCount + 1;
       onResolved(newStatus, newCount);
     } else {
       Alert.alert('Something went wrong', 'Could not confirm resolution. Please try again.');

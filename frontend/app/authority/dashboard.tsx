@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -16,6 +16,7 @@ import {
   fetchAuthorityDashboard,
   type DashboardCounts,
   type DashboardReport,
+  type DashboardResponse,
 } from '../../src/api/authority';
 import StatusFilterChips, { type FilterValue } from '../../src/components/authority/StatusFilterChips';
 import ReportListItem from '../../src/components/authority/ReportListItem';
@@ -37,7 +38,7 @@ export default function AuthorityDashboardScreen() {
       status: currentFilter === 'ALL' ? null : currentFilter,
     });
     if (res.ok) {
-      const data = res.data as { reports: DashboardReport[]; counts: DashboardCounts };
+      const data = res.data as DashboardResponse;
       setReports(data.reports);
       setCounts(data.counts);
     } else if (res.status === 401) {
@@ -48,15 +49,12 @@ export default function AuthorityDashboardScreen() {
     }
   }, [router]);
 
-  useEffect(() => {
-    setLoading(true);
-    load(filter).finally(() => setLoading(false));
-  }, [filter, load]);
-
-  // Refresh when navigating back from a resolve action.
+  // Fires on mount and on every screen focus (e.g. returning from /authority/report/[id]
+  // after a resolve), so we don't need a separate useEffect for the first load.
   useFocusEffect(
     useCallback(() => {
-      load(filter);
+      setLoading(true);
+      load(filter).finally(() => setLoading(false));
     }, [filter, load]),
   );
 
