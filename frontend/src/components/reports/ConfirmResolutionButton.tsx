@@ -9,7 +9,7 @@ interface ConfirmResolutionButtonProps {
   reporterId: string;
   userUpvoted: boolean;
   currentUserId: string;
-  onResolved: () => void;
+  onResolved: (newStatus: string) => void;
 }
 
 export default function ConfirmResolutionButton({
@@ -29,7 +29,10 @@ export default function ConfirmResolutionButton({
     const res = await confirmResolution(reportId);
     setLoading(false);
     if (res.ok) {
-      onResolved();
+      // The server returns the *current* status — only CLOSED once the
+      // confirmation threshold is reached. Earlier confirmations leave the
+      // report in RESOLVED_AWAITING_VALIDATION, so we must reflect that.
+      onResolved(res.data.status || status);
     } else {
       Alert.alert('Something went wrong', 'Could not confirm resolution. Please try again.');
     }
