@@ -109,8 +109,21 @@ export default function ReportDetailScreen() {
         status={detail.status}
         reporterId={detail.reporterId}
         userUpvoted={detail.userUpvoted}
+        userConfirmed={detail.userConfirmed}
+        confirmationCount={detail.confirmationCount}
         currentUserId={currentUserId}
-        onResolved={() => setDetail((d) => (d ? { ...d, status: 'CLOSED' } : d))}
+        onResolved={(newStatus, newCount) =>
+          setDetail((d) =>
+            d
+              ? {
+                  ...d,
+                  status: newStatus as typeof d.status,
+                  userConfirmed: true,
+                  confirmationCount: newCount,
+                }
+              : d,
+          )
+        }
       />
     </ScrollView>
   );

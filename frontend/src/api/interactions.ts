@@ -46,17 +46,26 @@ export async function postFlag(
   }
 }
 
+export interface ConfirmResolutionResponse {
+  reportId: string;
+  status: string;
+  confirmationCount: number;
+}
+
 export async function confirmResolution(
   reportId: string,
-): Promise<{ ok: boolean; data: { status: string } }> {
+): Promise<{ ok: boolean; data: ConfirmResolutionResponse }> {
   try {
     const res = await fetch(`${API_BASE}/api/reports/${reportId}/confirm-resolution/`, {
       method: 'POST',
       headers: authHeaders(),
     });
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, data };
+    const data = await res.json().catch(() => ({} as ConfirmResolutionResponse));
+    return { ok: res.ok, data: data as ConfirmResolutionResponse };
   } catch {
-    return { ok: false, data: { status: '' } };
+    return {
+      ok: false,
+      data: { reportId, status: '', confirmationCount: 0 },
+    };
   }
 }

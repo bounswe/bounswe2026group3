@@ -58,8 +58,10 @@ class ObstacleDetailSerializer(serializers.Serializer):
     description = serializers.CharField()
     upvoteCount = serializers.SerializerMethodField()
     flagCount = serializers.SerializerMethodField()
+    confirmationCount = serializers.SerializerMethodField()
     userUpvoted = serializers.SerializerMethodField()
     userFlagged = serializers.SerializerMethodField()
+    userConfirmed = serializers.SerializerMethodField()
     photos = PhotoSerializer(many=True)
     statusHistory = StatusHistorySerializer(many=True, source="status_changes")
     createdAt = serializers.DateTimeField(source="created_at")
@@ -72,6 +74,9 @@ class ObstacleDetailSerializer(serializers.Serializer):
 
     def get_flagCount(self, obj):
         return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.FLAG)
+
+    def get_confirmationCount(self, obj):
+        return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.CONFIRM_RESOLUTION)
 
     def _user_has_interaction(self, obj, interaction_type):
         request = self.context.get("request")
@@ -88,6 +93,9 @@ class ObstacleDetailSerializer(serializers.Serializer):
 
     def get_userFlagged(self, obj):
         return self._user_has_interaction(obj, InteractionType.FLAG)
+
+    def get_userConfirmed(self, obj):
+        return self._user_has_interaction(obj, InteractionType.CONFIRM_RESOLUTION)
 
 
 class CampusLocationSerializer(serializers.Serializer):
