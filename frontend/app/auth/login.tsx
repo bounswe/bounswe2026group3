@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useRouter, Link, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
-import { login, setTokens, parseDRFError } from '../../src/services/auth';
+import { login, setTokens, parseDRFError, getMe, landingRouteForRole } from '../../src/services/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -30,7 +30,12 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const res = await login({ email: email.trim(), password });
-      if (res.ok) { setTokens(res.data.access, res.data.refresh); router.replace('/tabs'); }
+      if (res.ok) {
+        setTokens(res.data.access, res.data.refresh);
+        const me = await getMe();
+        const target = me.ok ? landingRouteForRole(me.data.role) : '/tabs';
+        router.replace(target as any);
+      }
       else if (res.status === 401) setApiError('Invalid email or password');
       else setApiError(parseDRFError(res.data));
     } catch { setApiError('Network error. Check your connection.'); }

@@ -57,8 +57,21 @@ export interface RegisterPayload { email: string; fullName: string; password: st
 export interface RegisterResponse { userId: string; email: string; fullName: string; status: string; trustScore: number; accessToken: string; refreshToken: string; createdAt: string; }
 export interface LoginPayload { email: string; password: string; }
 export interface LoginResponse { access: string; refresh: string; }
-export type UserRole = 'USER' | 'TRUSTED_CONTRIBUTOR' | 'ADMIN' | string;
+export type UserRole =
+  | 'REGISTERED_USER'
+  | 'TRUSTED_CONTRIBUTOR'
+  | 'INFRASTRUCTURE_AUTHORITY'
+  | 'ADMINISTRATOR'
+  | string;
 export interface UserProfile { userId: string; email: string; fullName: string; status: string; trustScore: number; role: UserRole; createdAt: string; notificationsEnabled?: boolean; }
+
+export function isAuthorityRole(role: UserRole | undefined | null): boolean {
+  return role === 'INFRASTRUCTURE_AUTHORITY';
+}
+
+export function landingRouteForRole(role: UserRole | undefined | null): string {
+  return isAuthorityRole(role) ? '/authority/dashboard' : '/tabs';
+}
 
 export function parseDRFError(data: any): string {
   if (!data) return 'Something went wrong.';
