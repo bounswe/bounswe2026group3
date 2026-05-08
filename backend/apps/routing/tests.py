@@ -1,9 +1,11 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.routing.serializers import RouteResponseSerializer
+from apps.routing.services import WALKING_SPEED_MS
 from apps.users.models import MobilityProfile, User
 
 
@@ -232,3 +234,119 @@ class PassiveReportRoutingExclusionTest(TestCase):
         excluded_ids = {str(loc.get('id')) for loc in excluded}
         self.assertIn(str(verified.id), excluded_ids)
         self.assertNotIn(str(passive.id), excluded_ids)
+
+
+class RouteResponseSerializerTest(TestCase):
+    """Unit tests for RouteResponseSerializer field types and values (Issue #201)."""
+
+    def _make_data(self, **overrides):
+        data = {
+            'waypoints': [[41.0825, 29.0510], [41.0865, 29.0445]],
+            'distanceMeters': 620.5,
+            'estimatedTimeSeconds': 558,
+            'avoidedObstaclesCount': 2,
+            'warnings': ['Unverified obstacle nearby: Pothole'],
+            'isAccessible': True,
+        }
+        data.update(overrides)
+        return data
+
+    def test_all_required_fields_present(self):
+        s = RouteResponseSerializer(self._make_data())
+        data = s.data
+        for field in ('waypoints', 'distanceMeters', 'estimatedTimeSeconds',
+                      'avoidedObstaclesCount', 'warnings', 'isAccessible'):
+            self.assertIn(field, data)
+
+    def test_distance_is_float(self):
+        s = RouteResponseSerializer(self._make_data(distanceMeters=620.5))
+        self.assertIsInstance(s.data['distanceMeters'], float)
+
+    def test_estimated_time_is_integer(self):
+        s = RouteResponseSerializer(self._make_data(estimatedTimeSeconds=558))
+        self.assertIsInstance(s.data['estimatedTimeSeconds'], int)
+
+    def test_avoided_obstacles_count_is_integer(self):
+        s = RouteResponseSerializer(self._make_data(avoidedObstaclesCount=3))
+        self.assertIsInstance(s.data['avoidedObstaclesCount'], int)
+        self.assertEqual(s.data['avoidedObstaclesCount'], 3)
+
+    def test_waypoints_is_list_of_coordinate_pairs(self):
+        waypoints = [[41.0825, 29.0510], [41.0865, 29.0445]]
+        s = RouteResponseSerializer(self._make_data(waypoints=waypoints))
+        self.assertIsInstance(s.data['waypoints'], list)
+        self.assertEqual(len(s.data['waypoints']), 2)
+        self.assertAlmostEqual(s.data['waypoints'][0][0], 41.0825)
+        self.assertAlmostEqual(s.data['waypoints'][0][1], 29.0510)
+
+    def test_warnings_is_list_of_strings(self):
+        warnings = ['Verified obstacle on route: Broken Ramp (BROKEN_RAMP)']
+        s = RouteResponseSerializer(self._make_data(warnings=warnings))
+        self.assertIsInstance(s.data['warnings'], list)
+        self.assertIsInstance(s.data['warnings'][0], str)
+
+    def test_empty_warnings_list(self):
+        s = RouteResponseSerializer(self._make_data(warnings=[]))
+        self.assertEqual(s.data['warnings'], [])
+
+    def test_zero_avoided_obstacles(self):
+        s = RouteResponseSerializer(self._make_data(avoidedObstaclesCount=0))
+        self.assertEqual(s.data['avoidedObstaclesCount'], 0)
+
+    def test_is_accessible_false_when_obstacles_on_route(self):
+        s = RouteResponseSerializer(self._make_data(isAccessible=False))
+        self.assertFalse(s.data['isAccessible'])
+
+
+class WalkingSpeedFallbackTest(TestCase):
+    """When Valhalla returns time=0 or omits time, estimatedTimeSeconds must
+    be derived from distance / WALKING_SPEED_MS (~4 km/h) instead of 0."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/api/routes/calculate'
+
+    def _valhalla_zero_time(self, origin, destination, exclude_locations=None):
+        """Simulate a Valhalla response where summary.time is 0."""
+        return MOCK_WAYPOINTS, MOCK_DISTANCE, 0
+
+    def _valhalla_none_time(self, origin, destination, exclude_locations=None):
+        """Simulate a Valhalla response where summary.time is absent (None)."""
+        return MOCK_WAYPOINTS, MOCK_DISTANCE, None
+
+    @patch('apps.routing.services._get_unverified_obstacles', return_value=[])
+    @patch('apps.routing.services._get_verified_obstacles', return_value=[])
+    @patch('apps.routing.services._call_valhalla')
+    def test_fallback_used_when_valhalla_time_is_zero(
+        self, mock_valhalla, mock_verified, mock_unverified
+    ):
+        mock_valhalla.side_effect = self._valhalla_zero_time
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        expected = round(MOCK_DISTANCE / WALKING_SPEED_MS)
+        self.assertEqual(data['estimatedTimeSeconds'], expected)
+        self.assertGreater(data['estimatedTimeSeconds'], 0)
+
+    @patch('apps.routing.services._get_unverified_obstacles', return_value=[])
+    @patch('apps.routing.services._get_verified_obstacles', return_value=[])
+    @patch('apps.routing.services._call_valhalla')
+    def test_fallback_used_when_valhalla_time_is_none(
+        self, mock_valhalla, mock_verified, mock_unverified
+    ):
+        mock_valhalla.side_effect = self._valhalla_none_time
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        expected = round(MOCK_DISTANCE / WALKING_SPEED_MS)
+        self.assertEqual(data['estimatedTimeSeconds'], expected)
+
+    @patch('apps.routing.services._get_unverified_obstacles', return_value=[])
+    @patch('apps.routing.services._get_verified_obstacles', return_value=[])
+    @patch('apps.routing.services._call_valhalla', side_effect=mock_call_valhalla)
+    def test_valhalla_time_used_when_nonzero(
+        self, mock_valhalla, mock_verified, mock_unverified
+    ):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        data = response.json()
+        self.assertEqual(data['estimatedTimeSeconds'], round(MOCK_DURATION))
