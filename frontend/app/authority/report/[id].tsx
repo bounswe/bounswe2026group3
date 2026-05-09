@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../../src/constants/theme';
 import { fetchObstacleDetail, type ObstacleDetail } from '../../../src/api/map';
 import ResolveModal from '../../../src/components/authority/ResolveModal';
+import ReportMapPreview from '../../../src/components/map/ReportMapPreview';
 
 const STATUS_COLOR: Record<string, string> = {
   VERIFIED: COLORS.green600,
@@ -77,11 +78,14 @@ export default function AuthorityReportDetailScreen() {
 
         {!!detail.description && <Text style={s.description}>{detail.description}</Text>}
 
-        <View style={s.metaRow}>
-          <Ionicons name="location-outline" size={16} color={COLORS.gray500} />
-          <Text style={s.metaText}>
-            {detail.latitude.toFixed(5)}, {detail.longitude.toFixed(5)}
-          </Text>
+        <View style={s.mapBlock}>
+          <ReportMapPreview latitude={detail.latitude} longitude={detail.longitude} />
+          <View style={s.metaRow}>
+            <Ionicons name="location-outline" size={14} color={COLORS.gray500} />
+            <Text style={s.coordCaption}>
+              {detail.latitude.toFixed(5)}, {detail.longitude.toFixed(5)}
+            </Text>
+          </View>
         </View>
         <View style={s.metaRow}>
           <Ionicons name="thumbs-up-outline" size={16} color={COLORS.gray500} />
@@ -150,6 +154,8 @@ const s = StyleSheet.create({
   description: { fontSize: 14, color: COLORS.gray700, lineHeight: 20, marginBottom: 14 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   metaText: { fontSize: 13, color: COLORS.gray600 },
+  mapBlock: { marginBottom: 10 },
+  coordCaption: { fontSize: 12, color: COLORS.gray500, marginTop: 6 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: COLORS.gray600, letterSpacing: 0.5, marginTop: 14, marginBottom: 8 },
   photoRow: { marginBottom: 8 },
   photo: { width: 200, height: 150, borderRadius: 8, marginRight: 8, backgroundColor: COLORS.gray200 },

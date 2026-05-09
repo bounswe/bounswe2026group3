@@ -44,3 +44,4 @@ package-lock.json
 Thumbs.db
 .vercel
 .env*.local
+.claude/
