@@ -10,6 +10,7 @@ import { fetchObstacleDetail, type ObstacleDetail } from '../../src/api/map';
 import { getMe, isLoggedIn } from '../../src/services/auth';
 import InteractionBar from '../../src/components/reports/InteractionBar';
 import ConfirmResolutionButton from '../../src/components/reports/ConfirmResolutionButton';
+import DiscussionSection from '../../src/components/reports/DiscussionSection';
 
 const STATUS_COLOR: Record<string, string> = {
   UNVERIFIED: COLORS.gray400,
@@ -125,6 +126,8 @@ export default function ReportDetailScreen() {
           )
         }
       />
+
+      <DiscussionSection reportId={detail.id} currentUserId={currentUserId} />
     </ScrollView>
   );
 }
