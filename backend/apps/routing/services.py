@@ -8,6 +8,7 @@ EARTH_RADIUS_M = 6_371_000
 OBSTACLE_PROXIMITY_RADIUS_M = 40.0
 UNVERIFIED_WARNING_RADIUS_M = 80.0
 VALHALLA_BASE = 'https://valhalla1.openstreetmap.de'
+WALKING_SPEED_MS = 4000 / 3600  # 4 km/h in m/s
 
 
 def haversine(lat1, lng1, lat2, lng2):
@@ -113,7 +114,7 @@ def _call_valhalla(origin, destination, exclude_locations=None):
     waypoints = _decode_polyline(shape)
     summary = trip.get('summary', legs[0].get('summary', {}))
     distance_m = summary.get('length', 0) * 1000  # km to meters
-    duration_s = summary.get('time', 0)
+    duration_s = summary.get('time') or round(distance_m / WALKING_SPEED_MS)
 
     return waypoints, distance_m, duration_s
 
