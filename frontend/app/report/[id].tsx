@@ -15,9 +15,17 @@ import DiscussionSection from '../../src/components/reports/DiscussionSection';
 const STATUS_COLOR: Record<string, string> = {
   UNVERIFIED: COLORS.gray400,
   PASSIVE: COLORS.gray400,
-  VERIFIED: COLORS.green500,
+  VERIFIED: COLORS.green600,
   RESOLVED_AWAITING_VALIDATION: COLORS.blue500,
   CLOSED: COLORS.gray500,
+};
+
+const STATUS_BG: Record<string, string> = {
+  UNVERIFIED: COLORS.gray100,
+  PASSIVE: COLORS.gray100,
+  VERIFIED: COLORS.green100,
+  RESOLVED_AWAITING_VALIDATION: COLORS.blue100,
+  CLOSED: COLORS.gray100,
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -26,6 +34,17 @@ const STATUS_LABEL: Record<string, string> = {
   VERIFIED: 'Verified',
   RESOLVED_AWAITING_VALIDATION: 'Awaiting Validation',
   CLOSED: 'Closed',
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  BROKEN_RAMP: 'Broken Ramp',
+  NARROW_SIDEWALK: 'Narrow Sidewalk',
+  DAMAGED_SURFACE: 'Damaged Surface',
+  ROAD_CONSTRUCTION: 'Road Construction',
+  BLOCKED_PATH: 'Blocked Path',
+  BROKEN_ELEVATOR: 'Broken Elevator',
+  INACCESSIBLE_RESTROOM: 'Inaccessible Restroom',
+  OTHER: 'Other',
 };
 
 export default function ReportDetailScreen() {
@@ -64,46 +83,73 @@ export default function ReportDetailScreen() {
     );
   }
 
+  const statusColor = STATUS_COLOR[detail.status] ?? COLORS.gray400;
+  const statusBg = STATUS_BG[detail.status] ?? COLORS.gray100;
+
   return (
     <ScrollView style={s.page} contentContainerStyle={s.content}>
       <TouchableOpacity style={s.back} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={20} color={COLORS.gray700} />
+        <Ionicons name="arrow-back" size={18} color={COLORS.gray600} />
         <Text style={s.backText}>Map</Text>
       </TouchableOpacity>
 
-      <Text style={s.title}>{detail.title}</Text>
+      {/* Main info card */}
+      <View style={s.card}>
+        <Text style={s.title}>{detail.title}</Text>
 
-      <View style={s.badges}>
-        <View style={[s.badge, { backgroundColor: STATUS_COLOR[detail.status] ?? COLORS.gray400 }]}>
-          <Text style={s.badgeText}>{STATUS_LABEL[detail.status] ?? detail.status}</Text>
+        <View style={s.chips}>
+          {/* Status pill */}
+          <View style={[s.statusChip, { backgroundColor: statusBg }]}>
+            <View style={[s.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[s.statusChipText, { color: statusColor }]}>
+              {STATUS_LABEL[detail.status] ?? detail.status}
+            </Text>
+          </View>
+          {/* Category pill */}
+          <View style={s.categoryChip}>
+            <Text style={s.categoryChipText}>
+              {CATEGORY_LABEL[detail.category] ?? detail.category.replace(/_/g, ' ')}
+            </Text>
+          </View>
+          {/* Indoor/outdoor chip */}
+          {detail.isIndoor !== undefined && (
+            <View style={s.contextChip}>
+              <Ionicons
+                name={detail.isIndoor ? 'business-outline' : 'sunny-outline'}
+                size={11}
+                color={COLORS.gray600}
+              />
+              <Text style={s.contextChipText}>{detail.isIndoor ? 'Indoor' : 'Outdoor'}</Text>
+            </View>
+          )}
         </View>
-        <View style={[s.badge, { backgroundColor: COLORS.gray500 }]}>
-          <Text style={s.badgeText}>{detail.category.replace(/_/g, ' ')}</Text>
-        </View>
+
+        {detail.description ? (
+          <Text style={s.description}>{detail.description}</Text>
+        ) : null}
+
+        {detail.photos.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.photoRow}>
+            {detail.photos.map((p, i) => (
+              <Image key={i} source={{ uri: p.imageUrl }} style={s.photo} />
+            ))}
+          </ScrollView>
+        )}
       </View>
 
-      {detail.description ? (
-        <Text style={s.description}>{detail.description}</Text>
-      ) : null}
-
-      {detail.photos.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.photoRow}>
-          {detail.photos.map((p, i) => (
-            <Image key={i} source={{ uri: p.imageUrl }} style={s.photo} />
-          ))}
-        </ScrollView>
-      )}
-
-      <InteractionBar
-        reportId={detail.id}
-        reporterId={detail.reporterId}
-        upvoteCount={detail.upvoteCount}
-        flagCount={detail.flagCount}
-        userUpvoted={detail.userUpvoted}
-        userFlagged={detail.userFlagged}
-        currentUserId={currentUserId}
-        onUpdate={(patch) => setDetail((d) => (d ? { ...d, ...patch } : d))}
-      />
+      {/* Interaction bar */}
+      <View style={s.interactionCard}>
+        <InteractionBar
+          reportId={detail.id}
+          reporterId={detail.reporterId}
+          upvoteCount={detail.upvoteCount}
+          flagCount={detail.flagCount}
+          userUpvoted={detail.userUpvoted}
+          userFlagged={detail.userFlagged}
+          currentUserId={currentUserId}
+          onUpdate={(patch) => setDetail((d) => (d ? { ...d, ...patch } : d))}
+        />
+      </View>
 
       <ConfirmResolutionButton
         reportId={detail.id}
@@ -134,16 +180,70 @@ export default function ReportDetailScreen() {
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.gray100 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 16, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText: { fontSize: 14, color: COLORS.gray500 },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 16 },
-  backText: { fontSize: 14, color: COLORS.gray700 },
-  title: { fontSize: 20, fontWeight: '700', color: COLORS.gray900, marginBottom: 10 },
-  badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 12 },
-  badge: { borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { color: COLORS.white, fontSize: 11, fontWeight: '600' },
-  description: { fontSize: 14, color: COLORS.gray700, lineHeight: 20, marginBottom: 12 },
-  photoRow: { marginBottom: 12 },
-  photo: { width: 200, height: 150, borderRadius: 6, marginRight: 8 },
+
+  back: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
+  backText: { fontSize: 14, fontWeight: '500', color: COLORS.gray600 },
+
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  title: { fontSize: 20, fontWeight: '700', color: COLORS.gray900, marginBottom: 12 },
+
+  chips: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 12 },
+
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusChipText: { fontSize: 12, fontWeight: '600' },
+
+  categoryChip: {
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: COLORS.gray100,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  categoryChipText: { fontSize: 12, fontWeight: '500', color: COLORS.gray600 },
+
+  contextChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: COLORS.gray100,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  contextChipText: { fontSize: 12, fontWeight: '500', color: COLORS.gray600 },
+
+  description: { fontSize: 14, color: COLORS.gray700, lineHeight: 21, marginBottom: 12 },
+  photoRow: { marginBottom: 4 },
+  photo: { width: 200, height: 150, borderRadius: 10, marginRight: 8 },
+
+  interactionCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
 });
