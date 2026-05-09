@@ -6,11 +6,39 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
-import { fetchObstacleDetail, type ObstacleDetail } from '../../src/api/map';
+import { fetchObstacleDetail, type ObstacleDetail, type StatusChange } from '../../src/api/map';
 import { getMe, isLoggedIn } from '../../src/services/auth';
 import InteractionBar from '../../src/components/reports/InteractionBar';
 import ConfirmResolutionButton from '../../src/components/reports/ConfirmResolutionButton';
 import DiscussionSection from '../../src/components/reports/DiscussionSection';
+
+function formatDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+function StatusHistorySection({ history }: { history: StatusChange[] }) {
+  if (!history.length) return null;
+  return (
+    <View style={s.historyCard}>
+      <Text style={s.historyHeading}>Status History</Text>
+      {history.map((h, i) => (
+        <View key={i} style={[s.historyRow, i < history.length - 1 && s.historyRowBorder]}>
+          <View style={s.historyDot} />
+          <View style={s.historyInfo}>
+            <Text style={s.historyStatus}>
+              {STATUS_LABEL[h.newStatus] ?? h.newStatus}
+            </Text>
+            {h.reason ? <Text style={s.historyReason}>{h.reason}</Text> : null}
+            <Text style={s.historyTime}>{formatDate(h.changedAt)}</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 const STATUS_COLOR: Record<string, string> = {
   UNVERIFIED: COLORS.gray400,
@@ -124,6 +152,13 @@ export default function ReportDetailScreen() {
           )}
         </View>
 
+        {detail.createdAt ? (
+          <View style={s.metaRow}>
+            <Ionicons name="time-outline" size={12} color={COLORS.gray400} />
+            <Text style={s.metaText}>Reported {formatDate(detail.createdAt)}</Text>
+          </View>
+        ) : null}
+
         {detail.description ? (
           <Text style={s.description}>{detail.description}</Text>
         ) : null}
@@ -172,6 +207,8 @@ export default function ReportDetailScreen() {
           )
         }
       />
+
+      <StatusHistorySection history={detail.statusHistory} />
 
       <DiscussionSection reportId={detail.id} currentUserId={currentUserId} />
     </ScrollView>
@@ -246,4 +283,31 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.gray200,
   },
+
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
+  metaText: { fontSize: 11, color: COLORS.gray400 },
+
+  historyCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  historyHeading: { fontSize: 13, fontWeight: '700', color: COLORS.gray700, marginBottom: 12 },
+  historyRow: { flexDirection: 'row', gap: 10, paddingBottom: 12 },
+  historyRowBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.gray100, marginBottom: 12 },
+  historyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.green500,
+    marginTop: 4,
+    flexShrink: 0,
+  },
+  historyInfo: { flex: 1 },
+  historyStatus: { fontSize: 13, fontWeight: '600', color: COLORS.gray800 },
+  historyReason: { fontSize: 12, color: COLORS.gray500, marginTop: 2 },
+  historyTime: { fontSize: 11, color: COLORS.gray400, marginTop: 3 },
 });
