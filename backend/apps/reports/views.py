@@ -1,13 +1,16 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.shortcuts import get_object_or_404
 
 from apps.core.permissions import IsUser
 
-from .models import Report
+from .models import Comment, Report
 from .serializers import (
     ReportSerializer, ReportResponseSerializer,
     UpvoteResponseSerializer, FlagResponseSerializer, ConfirmResolutionResponseSerializer,
+    CommentSerializer, CommentCreateSerializer,
 )
 from .services import (
     SelfInteractionError, ConflictingInteractionError,
@@ -106,3 +109,31 @@ class ConfirmResolutionView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         return Response(ConfirmResolutionResponseSerializer(result).data, status=status.HTTP_200_OK)
+
+
+class ReportCommentsView(APIView):
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def get(self, request, report_id):
+        report = get_object_or_404(Report, pk=report_id)
+        comments = (
+            report.comments
+            .select_related('author', 'author__mobility_profile')
+            .all()
+        )
+        return Response(CommentSerializer(comments, many=True).data)
+
+    def post(self, request, report_id):
+        report = get_object_or_404(Report, pk=report_id)
+        serializer = CommentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = Comment.objects.create(
+            report=report,
+            author=request.user,
+            body=serializer.validated_data['body'],
+        )
+        comment.author = request.user
+        return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)
