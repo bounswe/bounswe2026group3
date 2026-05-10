@@ -12,8 +12,10 @@ class SavedPlace(models.Model):
         related_name='saved_places',
     )
     label = models.CharField(max_length=50)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    # 12 / 8 keeps lat (-90..90) and lng (-180..180) with 8-decimal precision —
+    # matches what expo-location and browser geolocation actually emit.
+    latitude = models.DecimalField(max_digits=12, decimal_places=8)
+    longitude = models.DecimalField(max_digits=12, decimal_places=8)
     address = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
