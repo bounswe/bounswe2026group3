@@ -61,15 +61,18 @@ const ORIGIN_ICON = makeCircleIcon(COLORS.green700);
 const DEST_ICON = makeCircleIcon(COLORS.red500);
 const SEARCH_PIN_ICON = makeCircleIcon(COLORS.red500);
 
-/** Indoor obstacle: circle with a small white 'i' badge — same colour coding as outdoor. */
-const makeIndoorCircleIcon = (color: string) =>
+/** Indoor obstacle: circle with a small white 'i' badge — same colour coding as outdoor.
+ *  When `hollow` is true (unverified), inverts to white background +
+ *  dashed category-colored border + category-colored 'i'. */
+const makeIndoorCircleIcon = (color: string, hollow = false) =>
   L.divIcon({
     html: `<div style="
       width:22px;height:22px;border-radius:50%;
-      background:${color};border:3px solid white;
+      background:${hollow ? 'white' : color};
+      border:3px ${hollow ? 'dashed' : 'solid'} ${hollow ? color : 'white'};
       box-shadow:0 3px 8px rgba(0,0,0,0.45);
       display:flex;align-items:center;justify-content:center;
-      font-size:11px;font-weight:800;color:white;
+      font-size:11px;font-weight:800;color:${hollow ? color : 'white'};
       font-family:system-ui,sans-serif;line-height:1;
     ">i</div>`,
     className: '',
@@ -523,6 +526,7 @@ export default function MapView() {
           {filterVisibleObstacles(obstacles).map((obs) => {
             if (obs.isIndoor && zoom < HIGH_DETAIL_ZOOM) return null;
             const isPassive = obs.status === 'PASSIVE';
+            const isUnverified = obs.status === 'UNVERIFIED';
             const color = CATEGORY_COLOR[obs.category] ?? COLORS.gray500;
             const cached = detailMap[obs.id];
             const detail = cached && cached !== 'loading' ? (cached as ObstacleDetail) : undefined;
@@ -533,7 +537,7 @@ export default function MapView() {
                 <Marker
                   key={obs.id}
                   position={[obs.latitude, obs.longitude]}
-                  icon={makeIndoorCircleIcon(color)}
+                  icon={makeIndoorCircleIcon(color, isUnverified)}
                   opacity={isPassive ? 0.5 : 1}
                   eventHandlers={{ click: () => handlePinClick(obs.id) }}
                 >
@@ -555,10 +559,12 @@ export default function MapView() {
                 center={[obs.latitude, obs.longitude]}
                 radius={10}
                 pathOptions={{
-                  color, fillColor: color,
-                  fillOpacity: isPassive ? 0.4 : 0.85,
-                  weight: isPassive ? 1 : 2,
+                  color,
+                  fillColor: isUnverified ? 'white' : color,
+                  fillOpacity: isPassive ? 0.4 : (isUnverified ? 1 : 0.85),
+                  weight: isPassive ? 1 : (isUnverified ? 3 : 2),
                   opacity: isPassive ? 0.5 : 1,
+                  dashArray: isUnverified ? '4 3' : undefined,
                 }}
                 eventHandlers={{ click: () => handlePinClick(obs.id) }}
               >
