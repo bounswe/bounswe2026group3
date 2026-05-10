@@ -242,6 +242,7 @@ export default function MapView() {
   const [saveLabel, setSaveLabel] = useState('');
   const [savingPlace, setSavingPlace] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
   // Origin/Dest autocomplete state
   const [originSuggestions, setOriginSuggestions] = useState<SearchResult[]>([]);
@@ -274,6 +275,8 @@ export default function MapView() {
       setSavedPlaces((prev) => [...prev, result.data]);
       setSaveTarget(null);
       setSaveLabel('');
+      setSaveSuccessMsg(`Saved "${result.data.label}" to your places.`);
+      setTimeout(() => setSaveSuccessMsg(''), 3000);
     } else {
       setSaveError(result.error);
     }
@@ -595,6 +598,14 @@ export default function MapView() {
 
       {/* ── Overlaid UI ── */}
       <View style={s.overlayContainer} pointerEvents="box-none">
+
+        {/* Success toast — shown for 3s after a place is saved */}
+        {!!saveSuccessMsg && (
+          <View style={s.okToast} pointerEvents="none">
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.green700} />
+            <Text style={s.okToastText}>{saveSuccessMsg}</Text>
+          </View>
+        )}
 
         {/* Top area */}
         <View style={s.topArea} pointerEvents="box-none">
@@ -950,6 +961,19 @@ const s = StyleSheet.create({
   },
 
   topArea: { paddingTop: 8 },
+
+  okToast: {
+    position: 'absolute', top: 50, left: 16, right: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.green50,
+    borderWidth: 1, borderColor: 'rgba(39,114,74,0.18)',
+    borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 6, elevation: 4,
+    zIndex: 1000,
+  },
+  okToastText: { flex: 1, fontSize: 13, color: COLORS.green700, fontWeight: '500' },
 
   // ── Search card ──────────────────────────────────────────────────────────
   searchCard: {
