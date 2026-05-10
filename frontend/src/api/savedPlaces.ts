@@ -36,18 +36,38 @@ export async function getSavedPlaces(): Promise<SavedPlace[]> {
   }
 }
 
-export async function createSavedPlace(payload: SavedPlacePayload): Promise<SavedPlace | null> {
+export type CreateSavedPlaceResult =
+  | { ok: true; data: SavedPlace }
+  | { ok: false; error: string };
+
+export async function createSavedPlace(
+  payload: SavedPlacePayload,
+): Promise<CreateSavedPlaceResult> {
+  let res: Response;
   try {
-    const res = await fetch(`${API_BASE}/api/users/me/saved-places/`, {
+    res = await fetch(`${API_BASE}/api/users/me/saved-places/`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return null;
-    return await res.json();
   } catch {
-    return null;
+    return { ok: false, error: 'Network error. Check your connection.' };
   }
+
+  const body = await res.json().catch(() => null);
+
+  if (res.ok) {
+    return { ok: true, data: body as SavedPlace };
+  }
+
+  // Backend wraps validation errors as { error: { code, detail, timestamp } }
+  // (apps/core/exceptions.custom_exception_handler). Fall back to detail or
+  // a generic message when the shape doesn't match.
+  const error =
+    (body && typeof body === 'object' && body.error?.detail) ||
+    (body && typeof body === 'object' && body.detail) ||
+    'Failed to save place. Please try again.';
+  return { ok: false, error: String(error) };
 }
 
 export async function deleteSavedPlace(id: string): Promise<boolean> {

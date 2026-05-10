@@ -184,6 +184,19 @@ class SavedPlaceCreateTest(TestCase):
             SavedPlace.objects.filter(user=self.user, label='Home').count(), 2,
         )
 
+    def test_accepts_high_precision_coordinates(self):
+        # Browser/expo geolocation returns lat/lng with 8+ decimal places.
+        # The DecimalField must accept those without 400ing.
+        self.client.force_authenticate(user=self.user)
+        payload = self._payload(latitude='41.01145731', longitude='28.97675230')
+
+        response = self.client.post(LIST_URL, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        place = SavedPlace.objects.get(pk=response.json()['id'])
+        self.assertEqual(str(place.latitude), '41.01145731')
+        self.assertEqual(str(place.longitude), '28.97675230')
+
 
 # ---------------------------------------------------------------------------
 # DELETE /api/users/me/saved-places/{id}/

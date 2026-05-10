@@ -12,6 +12,10 @@ jest.mock('../components/profile/MobilityProfileCard', () => ({
 const mockRouter = { replace: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
+  useFocusEffect: (cb: () => void) => {
+    const React = require('react');
+    React.useEffect(() => { cb(); }, [cb]);
+  },
 }));
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: () => null,

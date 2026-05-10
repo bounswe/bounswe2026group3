@@ -60,6 +60,10 @@ jest.mock('../components/profile/MobilityProfileCard', () => ({
 jest.mock('expo-router', () => ({
   __esModule: true,
   useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+  useFocusEffect: (cb: () => void) => {
+    const React = require('react');
+    React.useEffect(() => { cb(); }, [cb]);
+  },
 }));
 
 import { TrustedContributorBadge } from '../components/profile/TrustedContributorBadge';

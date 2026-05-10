@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../src/constants/theme';
 import { getMe, updateMe, patchMe, clearTokens, isLoggedIn, parseDRFError, UserProfile } from '../../src/services/auth';
@@ -42,9 +42,13 @@ export default function ProfileScreen() {
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  useEffect(() => {
-    getSavedPlaces().then(setSavedPlaces);
-  }, []);
+  // Refetch on every focus so a newly-saved place from the map appears
+  // without needing an app reload.
+  useFocusEffect(
+    useCallback(() => {
+      getSavedPlaces().then(setSavedPlaces);
+    }, []),
+  );
 
   async function handleDeletePlace(id: string) {
     setDeletingId(id);
