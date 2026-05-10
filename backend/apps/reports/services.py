@@ -55,7 +55,6 @@ def create_report(reporter, validated_data) -> Report:
                 context=validated_data["context"],
                 latitude=location["lat"],
                 longitude=location["lng"],
-                status=ReportStatus.VERIFIED,
             )
 
             photo_objects = []
