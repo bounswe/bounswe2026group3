@@ -54,7 +54,7 @@ class CreateReportServiceTest(TestCase):
 
         self.assertIsNotNone(report.pk)
         self.assertEqual(report.reporter, self.user)
-        self.assertEqual(report.status, ReportStatus.VERIFIED)
+        self.assertEqual(report.status, ReportStatus.UNVERIFIED)
         self.assertEqual(report.category, ObstacleCategory.BROKEN_RAMP)
 
     @patch("apps.reports.services._get_supabase_client")
@@ -235,7 +235,7 @@ class ReportCreateViewTest(TestCase):
         self.assertIn("autoVerified", data)
         self.assertIn("duplicateCandidate", data)
         self.assertIn("createdAt", data)
-        self.assertEqual(data["status"], ReportStatus.VERIFIED)
+        self.assertEqual(data["status"], ReportStatus.UNVERIFIED)
         self.assertFalse(data["autoVerified"])
         self.assertIsNone(data["duplicateCandidate"])
 
