@@ -54,11 +54,12 @@ class GetObstaclesInBboxTest(TestCase):
         qs = get_obstacles_in_bbox(41.0820, 29.0490, 41.0850, 29.0530)
         self.assertEqual(qs.count(), 0)
 
-    def test_excludes_unverified_reports(self):
+    def test_includes_unverified_reports(self):
         from apps.map.selectors import get_obstacles_in_bbox
         make_report(self.user, report_status=ReportStatus.UNVERIFIED)
         qs = get_obstacles_in_bbox(41.0820, 29.0490, 41.0850, 29.0530)
-        self.assertEqual(qs.count(), 0)
+        self.assertEqual(qs.count(), 1)
+        self.assertEqual(qs.first().status, ReportStatus.UNVERIFIED)
 
     def test_excludes_passive_by_default(self):
         from apps.map.selectors import get_obstacles_in_bbox
@@ -108,11 +109,12 @@ class GetObstacleDetailTest(TestCase):
         result = get_obstacle_detail(report.pk)
         self.assertIsNotNone(result)
 
-    def test_returns_none_for_unverified(self):
+    def test_returns_unverified_report(self):
         from apps.map.selectors import get_obstacle_detail
         report = make_report(self.user, report_status=ReportStatus.UNVERIFIED)
         result = get_obstacle_detail(report.pk)
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.pk, report.pk)
 
     def test_returns_resolved_awaiting_validation_report(self):
         # Citizens hitting "View report" from a status-change notification, and
@@ -276,10 +278,11 @@ class ObstacleDetailViewTest(TestCase):
         self.assertIn("lat", location)
         self.assertIn("lng", location)
 
-    def test_unverified_returns_404(self):
+    def test_unverified_returns_200(self):
         report = make_report(self.user, report_status=ReportStatus.UNVERIFIED)
         response = self.client.get(self._url(report.pk))
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["status"], ReportStatus.UNVERIFIED)
 
     def test_nonexistent_returns_404(self):
         import uuid
