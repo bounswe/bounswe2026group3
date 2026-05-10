@@ -19,23 +19,42 @@ function formatDate(iso: string): string {
     ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
+function parseReason(raw: string): { notes: string; photoUrl: string | null } {
+  // Backend stores reason as "repair_photo_url: <url>; notes: <text>" or plain text
+  const photoMatch = raw.match(/repair_photo_url:\s*(https?:\/\/\S+)/);
+  const notesMatch = raw.match(/notes:\s*(.+?)(?:;|$)/);
+  if (photoMatch || notesMatch) {
+    return {
+      photoUrl: photoMatch ? photoMatch[1].replace(/;$/, '').trim() : null,
+      notes: notesMatch ? notesMatch[1].trim() : '',
+    };
+  }
+  return { notes: raw, photoUrl: null };
+}
+
 function StatusHistorySection({ history }: { history: StatusChange[] }) {
   if (!history.length) return null;
   return (
     <View style={s.historyCard}>
       <Text style={s.historyHeading}>Status History</Text>
-      {history.map((h, i) => (
-        <View key={i} style={[s.historyRow, i < history.length - 1 && s.historyRowBorder]}>
-          <View style={s.historyDot} />
-          <View style={s.historyInfo}>
-            <Text style={s.historyStatus}>
-              {STATUS_LABEL[h.newStatus] ?? h.newStatus}
-            </Text>
-            {h.reason ? <Text style={s.historyReason}>{h.reason}</Text> : null}
-            <Text style={s.historyTime}>{formatDate(h.changedAt)}</Text>
+      {history.map((h, i) => {
+        const { notes, photoUrl } = h.reason ? parseReason(h.reason) : { notes: '', photoUrl: null };
+        return (
+          <View key={i} style={[s.historyRow, i < history.length - 1 && s.historyRowBorder]}>
+            <View style={s.historyDot} />
+            <View style={s.historyInfo}>
+              <Text style={s.historyStatus}>
+                {STATUS_LABEL[h.newStatus] ?? h.newStatus}
+              </Text>
+              {notes ? <Text style={s.historyReason}>{notes}</Text> : null}
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={s.historyPhoto} resizeMode="cover" />
+              ) : null}
+              <Text style={s.historyTime}>{formatDate(h.changedAt)}</Text>
+            </View>
           </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -335,6 +354,7 @@ const s = StyleSheet.create({
   },
   historyInfo: { flex: 1 },
   historyStatus: { fontSize: 13, fontWeight: '600', color: COLORS.gray800 },
-  historyReason: { fontSize: 12, color: COLORS.gray500, marginTop: 2 },
-  historyTime: { fontSize: 11, color: COLORS.gray400, marginTop: 3 },
+  historyReason: { fontSize: 12, color: COLORS.gray600, marginTop: 2 },
+  historyPhoto: { width: '100%', height: 140, borderRadius: 8, marginTop: 8 },
+  historyTime: { fontSize: 11, color: COLORS.gray400, marginTop: 4 },
 });
