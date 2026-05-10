@@ -2,7 +2,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.shortcuts import get_object_or_404
 
 from apps.core.permissions import IsUser
 
@@ -118,7 +117,10 @@ class ReportCommentsView(APIView):
         return [AllowAny()]
 
     def get(self, request, report_id):
-        report = get_object_or_404(Report, pk=report_id)
+        try:
+            report = Report.objects.get(pk=report_id)
+        except Report.DoesNotExist:
+            return Response({'detail': 'Report not found.'}, status=status.HTTP_404_NOT_FOUND)
         comments = (
             report.comments
             .select_related('author', 'author__mobility_profile')
@@ -127,7 +129,10 @@ class ReportCommentsView(APIView):
         return Response(CommentSerializer(comments, many=True).data)
 
     def post(self, request, report_id):
-        report = get_object_or_404(Report, pk=report_id)
+        try:
+            report = Report.objects.get(pk=report_id)
+        except Report.DoesNotExist:
+            return Response({'detail': 'Report not found.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = CommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = Comment.objects.create(

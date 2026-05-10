@@ -72,7 +72,24 @@ const CATEGORY_LABEL: Record<string, string> = {
   BLOCKED_PATH: 'Blocked Path',
   BROKEN_ELEVATOR: 'Broken Elevator',
   INACCESSIBLE_RESTROOM: 'Inaccessible Restroom',
+  NARROW_CORRIDOR: 'Narrow Corridor',
+  HEAVY_DOOR: 'Heavy Door',
+  SLIPPERY_FLOOR: 'Slippery Floor',
   OTHER: 'Other',
+};
+
+const CATEGORY_COLOR: Record<string, string> = {
+  BROKEN_RAMP: COLORS.red500,
+  NARROW_SIDEWALK: COLORS.orange500,
+  DAMAGED_SURFACE: COLORS.orange500,
+  ROAD_CONSTRUCTION: '#EAB308',
+  BLOCKED_PATH: COLORS.red600,
+  BROKEN_ELEVATOR: COLORS.orange500,
+  INACCESSIBLE_RESTROOM: COLORS.orange500,
+  NARROW_CORRIDOR: COLORS.orange500,
+  HEAVY_DOOR: '#EAB308',
+  SLIPPERY_FLOOR: COLORS.orange500,
+  OTHER: COLORS.gray500,
 };
 
 export default function ReportDetailScreen() {
@@ -134,16 +151,22 @@ export default function ReportDetailScreen() {
             </Text>
           </View>
           {/* Category pill */}
-          <View style={s.categoryChip}>
-            <Text style={s.categoryChipText}>
-              {CATEGORY_LABEL[detail.category] ?? detail.category.replace(/_/g, ' ')}
-            </Text>
-          </View>
+          {(() => {
+            const catColor = CATEGORY_COLOR[detail.category] ?? COLORS.gray500;
+            return (
+              <View style={[s.categoryChip, { borderColor: catColor + '55' }]}>
+                <View style={[s.categoryDot, { backgroundColor: catColor }]} />
+                <Text style={[s.categoryChipText, { color: catColor }]}>
+                  {CATEGORY_LABEL[detail.category] ?? detail.category.replace(/_/g, ' ')}
+                </Text>
+              </View>
+            );
+          })()}
           {/* Indoor/outdoor chip */}
           {detail.isIndoor !== undefined && (
             <View style={s.contextChip}>
               <Ionicons
-                name={detail.isIndoor ? 'business-outline' : 'sunny-outline'}
+                name={detail.isIndoor ? 'home-outline' : 'sunny-outline'}
                 size={11}
                 color={COLORS.gray600}
               />
@@ -248,14 +271,18 @@ const s = StyleSheet.create({
   statusChipText: { fontSize: 12, fontWeight: '600' },
 
   categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: COLORS.gray100,
+    backgroundColor: COLORS.white,
     borderWidth: 1,
     borderColor: COLORS.gray200,
   },
-  categoryChipText: { fontSize: 12, fontWeight: '500', color: COLORS.gray600 },
+  categoryDot: { width: 6, height: 6, borderRadius: 3 },
+  categoryChipText: { fontSize: 12, fontWeight: '600' },
 
   contextChip: {
     flexDirection: 'row',
