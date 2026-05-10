@@ -270,12 +270,12 @@ export default function MapView() {
       address: saveTarget.address || undefined,
     });
     setSavingPlace(false);
-    if (result) {
-      setSavedPlaces((prev) => [...prev, result]);
+    if (result.ok) {
+      setSavedPlaces((prev) => [...prev, result.data]);
       setSaveTarget(null);
       setSaveLabel('');
     } else {
-      setSaveError('Failed to save place. Please try again.');
+      setSaveError(result.error);
     }
   }, [saveTarget, saveLabel]);
 
