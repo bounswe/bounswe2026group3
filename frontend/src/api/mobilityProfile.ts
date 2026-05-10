@@ -28,13 +28,13 @@ function mockDelay(): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, 400));
 }
 
-// ── GET /users/me/mobility-profile ─────────────────────────────────────────
+// ── GET /api/users/me/mobility-profile ─────────────────────────────────────────
 export async function getMobilityProfile(): Promise<MobilityProfile | null> {
   if (MOCK) {
     await mockDelay();
     return _mockProfile;
   }
-  const res = await fetch(`${API_BASE}/users/me/mobility-profile`, {
+  const res = await fetch(`${API_BASE}/api/users/me/mobility-profile`, {
     headers: authHeaders(),
   });
   if (res.status === 404) return null;
@@ -42,7 +42,7 @@ export async function getMobilityProfile(): Promise<MobilityProfile | null> {
   return res.json();
 }
 
-// ── POST /users/me/mobility-profile ────────────────────────────────────────
+// ── POST /api/users/me/mobility-profile ────────────────────────────────────────
 export async function createMobilityProfile(
   payload: MobilityProfilePayload,
 ): Promise<MobilityProfile> {
@@ -55,7 +55,7 @@ export async function createMobilityProfile(
     };
     return _mockProfile;
   }
-  const res = await fetch(`${API_BASE}/users/me/mobility-profile`, {
+  const res = await fetch(`${API_BASE}/api/users/me/mobility-profile`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -64,7 +64,7 @@ export async function createMobilityProfile(
   return res.json();
 }
 
-// ── PUT /users/me/mobility-profile ─────────────────────────────────────────
+// ── PUT /api/users/me/mobility-profile ─────────────────────────────────────────
 export async function updateMobilityProfile(
   payload: MobilityProfilePayload,
 ): Promise<MobilityProfile> {
@@ -73,7 +73,7 @@ export async function updateMobilityProfile(
     _mockProfile = { ..._mockProfile!, ...payload };
     return _mockProfile;
   }
-  const res = await fetch(`${API_BASE}/users/me/mobility-profile`, {
+  const res = await fetch(`${API_BASE}/api/users/me/mobility-profile`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(payload),
