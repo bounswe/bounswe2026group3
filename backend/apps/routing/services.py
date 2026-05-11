@@ -6,6 +6,9 @@ from apps.reports.models import Report
 
 EARTH_RADIUS_M = 6_371_000
 OBSTACLE_PROXIMITY_RADIUS_M = 40.0
+# Padding added around the origin-destination bounding box when pre-filtering
+# obstacles for Valhalla.  ~1 km at Istanbul's latitude (1° ≈ 111 km).
+ROUTE_OBSTACLE_PADDING_DEG = 0.009
 UNVERIFIED_WARNING_RADIUS_M = 80.0
 VALHALLA_BASE = 'https://valhalla1.openstreetmap.de'
 WALKING_SPEED_MS = 4000 / 3600  # 4 km/h in m/s
@@ -68,11 +71,14 @@ def _decode_polyline(encoded, precision=6):
     return decoded
 
 
-def _get_verified_obstacles():
-    return list(
-        Report.objects.filter(status='VERIFIED', context='OUTDOOR')
-        .values('id', 'latitude', 'longitude', 'title', 'category')
-    )
+def _get_verified_obstacles(bbox=None):
+    qs = Report.objects.filter(status='VERIFIED', context='OUTDOOR')
+    if bbox:
+        qs = qs.filter(
+            latitude__gte=bbox['south'], latitude__lte=bbox['north'],
+            longitude__gte=bbox['west'], longitude__lte=bbox['east'],
+        )
+    return list(qs.values('id', 'latitude', 'longitude', 'title', 'category'))
 
 
 def _get_unverified_obstacles():
@@ -185,7 +191,14 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     origin = [origin_lat, origin_lng]
     destination = [dest_lat, dest_lng]
 
-    verified_obstacles = _get_verified_obstacles()
+    pad = ROUTE_OBSTACLE_PADDING_DEG
+    route_bbox = {
+        'south': min(origin_lat, dest_lat) - pad,
+        'north': max(origin_lat, dest_lat) + pad,
+        'west': min(origin_lng, dest_lng) - pad,
+        'east': max(origin_lng, dest_lng) + pad,
+    }
+    verified_obstacles = _get_verified_obstacles(bbox=route_bbox)
     unverified = _get_unverified_obstacles()
 
     # 1) Baseline: shortest route, no exclusions.
@@ -200,8 +213,10 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     chosen_waypoints = baseline_waypoints
     on_chosen = on_baseline
 
-    # 2) Try avoidance whenever verified obstacles exist — Valhalla re-routes
-    #    around obstacle areas even if none were detected on the baseline polyline.
+    # 2) If any verified obstacles exist in the route area, always call Valhalla
+    #    with them as exclusions and use that as the chosen route. The old
+    #    on_baseline gate caused avoidance to be silently discarded whenever
+    #    the obstacle wasn't within 40 m of a baseline waypoint.
     if verified_obstacles:
         try:
             alt_waypoints, alt_distance, alt_duration = _call_valhalla(
@@ -210,13 +225,9 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
             on_alternative = _obstacles_on_route(
                 alt_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
             )
-            on_alternative_ids = {obs['id'] for obs in on_alternative}
-            # Only surface the alternative if it removes at least one of the
-            # baseline-blocking obstacles.
-            if on_baseline_ids - on_alternative_ids:
-                alternative_route = _route_payload(alt_waypoints, alt_distance, alt_duration)
-                chosen_waypoints = alt_waypoints
-                on_chosen = on_alternative
+            alternative_route = _route_payload(alt_waypoints, alt_distance, alt_duration)
+            chosen_waypoints = alt_waypoints
+            on_chosen = on_alternative
         except ValueError:
             # Avoidance failed — stick with baseline.
             pass
