@@ -17,6 +17,14 @@ export interface PhotoItem {
   uploadedAt?: string;
 }
 
+export interface StatusChange {
+  oldStatus: string;
+  newStatus: string;
+  changedBy: string;
+  reason: string;
+  changedAt: string;
+}
+
 export interface ObstacleDetail extends Obstacle {
   photos: PhotoItem[];
   upvoteCount: number;
@@ -26,6 +34,8 @@ export interface ObstacleDetail extends Obstacle {
   userFlagged: boolean;
   userConfirmed: boolean;
   reporterId: string;
+  createdAt: string;
+  statusHistory: StatusChange[];
 }
 
 export interface SearchResult {
@@ -116,6 +126,14 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
       userFlagged: raw.userFlagged ?? false,
       userConfirmed: raw.userConfirmed ?? false,
       reporterId: raw.reporterId ?? '',
+      createdAt: raw.createdAt ?? '',
+      statusHistory: (raw.statusHistory ?? []).map((h: any) => ({
+        oldStatus: h.oldStatus ?? '',
+        newStatus: h.newStatus ?? '',
+        changedBy: h.changedBy ?? '',
+        reason: h.reason ?? '',
+        changedAt: h.changedAt ?? '',
+      })),
     };
   } catch {
     return null;
