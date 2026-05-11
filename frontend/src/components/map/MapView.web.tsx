@@ -143,14 +143,17 @@ function FlyTo({ target }: { target: [number, number] | null }) {
   return null;
 }
 
-function FitRoute({ waypoints }: { waypoints: [number, number][] | null }) {
+function FitRoute({ route }: { route: RouteResult | null }) {
   const map = useMap();
   useEffect(() => {
-    if (waypoints && waypoints.length > 1) {
-      map.fitBounds(waypoints as L.LatLngBoundsExpression, { padding: [60, 60] });
+    const baseline = route?.baselineRoute?.waypoints ?? route?.waypoints ?? [];
+    const alternative = route?.alternativeRoute?.waypoints ?? [];
+    const combined = [...baseline, ...alternative];
+    if (combined.length > 1) {
+      map.fitBounds(combined as L.LatLngBoundsExpression, { padding: [60, 60] });
       setTimeout(() => map.invalidateSize(), 100);
     }
-  }, [waypoints]);
+  }, [route]);
   return null;
 }
 
@@ -522,7 +525,7 @@ export default function MapView() {
           <BoundsWatcher onChange={handleBoundsChange} />
           <ClickHandler active={!!pinMode} onPick={handleMapClick} />
           <FlyTo target={flyTarget} />
-          <FitRoute waypoints={route?.waypoints ?? null} />
+          <FitRoute route={route} />
 
           {/* Obstacle markers — re-applied every render so an in-session
               status update to CLOSED removes the marker without a reload. */}
@@ -592,8 +595,30 @@ export default function MapView() {
           {routePanelOpen && originLL && <Marker position={originLL} icon={ORIGIN_ICON} />}
           {routePanelOpen && destLL && <Marker position={destLL} icon={DEST_ICON} />}
 
-          {/* Route polyline */}
-          {route && route.waypoints.length > 1 && (
+          {/* Route polylines: when an alternative was returned, draw the
+              baseline (dashed, secondary) underneath the alternative (solid). */}
+          {route?.alternativeRoute && route.alternativeRoute.waypoints.length > 1 && (
+            <>
+              {route.baselineRoute && route.baselineRoute.waypoints.length > 1 && (
+                <Polyline
+                  positions={route.baselineRoute.waypoints}
+                  pathOptions={{
+                    color: COLORS.gray500,
+                    weight: 4,
+                    opacity: 0.7,
+                    lineJoin: 'round',
+                    dashArray: '8 8',
+                  }}
+                />
+              )}
+              <Polyline
+                positions={route.alternativeRoute.waypoints}
+                pathOptions={{ color: COLORS.blue500, weight: 5, opacity: 0.9, lineJoin: 'round' }}
+              />
+            </>
+          )}
+          {/* No alternative: render the chosen route as a single solid line. */}
+          {!route?.alternativeRoute && route && route.waypoints.length > 1 && (
             <Polyline
               positions={route.waypoints}
               pathOptions={{ color: COLORS.blue500, weight: 5, opacity: 0.85, lineJoin: 'round' }}

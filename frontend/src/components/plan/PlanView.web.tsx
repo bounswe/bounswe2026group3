@@ -301,12 +301,42 @@ export default function PlanView() {
           />
           <ZoomControl position="bottomright" />
           <ClickHandler active={!!pinMode} onPick={handleMapClick} />
-          <FitBounds origin={originLL} dest={destLL} route={route?.waypoints ?? null} />
+          <FitBounds
+            origin={originLL}
+            dest={destLL}
+            route={
+              route
+                ? [
+                    ...(route.baselineRoute?.waypoints ?? route.waypoints ?? []),
+                    ...(route.alternativeRoute?.waypoints ?? []),
+                  ]
+                : null
+            }
+          />
 
           {originLL && <Marker position={originLL} icon={ORIGIN_ICON} />}
           {destLL   && <Marker position={destLL}   icon={DEST_ICON}   />}
 
-          {route && route.waypoints.length > 1 && (
+          {/* Baseline dashed underneath when there's also an alternative. */}
+          {route?.alternativeRoute && route.baselineRoute && route.baselineRoute.waypoints.length > 1 && (
+            <Polyline
+              positions={route.baselineRoute.waypoints}
+              pathOptions={{
+                color: COLORS.gray500,
+                weight: 4,
+                opacity: 0.7,
+                lineJoin: 'round',
+                dashArray: '8 8',
+              }}
+            />
+          )}
+          {route?.alternativeRoute && route.alternativeRoute.waypoints.length > 1 && (
+            <Polyline
+              positions={route.alternativeRoute.waypoints}
+              pathOptions={{ color: COLORS.blue500, weight: 5, opacity: 0.9, lineJoin: 'round' }}
+            />
+          )}
+          {!route?.alternativeRoute && route && route.waypoints.length > 1 && (
             <Polyline
               positions={route.waypoints}
               pathOptions={{ color: COLORS.blue500, weight: 5, opacity: 0.85, lineJoin: 'round' }}

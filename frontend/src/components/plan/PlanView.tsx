@@ -47,7 +47,7 @@ const PLAN_MAP_HTML = `<!DOCTYPE html>
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
   var pinMode = null;
-  var originMarker = null, destMarker = null, routeLine = null;
+  var originMarker = null, destMarker = null, routeLine = null, baselineLine = null;
 
   function makeIcon(color) {
     return L.divIcon({
@@ -84,12 +84,22 @@ const PLAN_MAP_HTML = `<!DOCTYPE html>
     destMarker = L.marker([lat, lng], { icon: makeIcon('#EF4444') }).addTo(map);
   };
 
-  window.showRoute = function(waypointsJson) {
-    if (routeLine) map.removeLayer(routeLine);
+  window.showRoute = function(waypointsJson, baselineWaypointsJson) {
+    if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+    if (baselineLine) { map.removeLayer(baselineLine); baselineLine = null; }
     var waypoints = JSON.parse(waypointsJson);
     if (waypoints.length < 2) return;
-    routeLine = L.polyline(waypoints, { color: '#3B82F6', weight: 5, opacity: 0.85 }).addTo(map);
-    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+    var baseline = baselineWaypointsJson ? JSON.parse(baselineWaypointsJson) : null;
+    if (baseline && baseline.length > 1) {
+      baselineLine = L.polyline(baseline, {
+        color: '#6B7280', weight: 4, opacity: 0.7, dashArray: '8 8'
+      }).addTo(map);
+    }
+    routeLine = L.polyline(waypoints, { color: '#3B82F6', weight: 5, opacity: 0.9 }).addTo(map);
+    var fitGroup = baselineLine
+      ? L.featureGroup([baselineLine, routeLine])
+      : routeLine;
+    map.fitBounds(fitGroup.getBounds(), { padding: [40, 40] });
   };
 
   window.fitBothPoints = function() {
@@ -101,6 +111,7 @@ const PLAN_MAP_HTML = `<!DOCTYPE html>
 
   window.clearRoute = function() {
     if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+    if (baselineLine) { map.removeLayer(baselineLine); baselineLine = null; }
   };
 </script>
 </body>
@@ -205,8 +216,12 @@ export default function PlanView() {
     if (result) {
       setRoute(result);
       if (result.waypoints.length > 1) {
+        const baselineArg =
+          result.alternativeRoute && result.baselineRoute
+            ? JSON.stringify(JSON.stringify(result.baselineRoute.waypoints))
+            : 'null';
         webViewRef.current?.injectJavaScript(
-          `window.showRoute(${JSON.stringify(JSON.stringify(result.waypoints))}); true;`
+          `window.showRoute(${JSON.stringify(JSON.stringify(result.waypoints))}, ${baselineArg}); true;`
         );
       }
     } else {

@@ -15,10 +15,20 @@ export interface RouteRequest {
   preferences?: GuestPreferences;
 }
 
-export interface RouteResult {
+export interface RouteLeg {
   waypoints: [number, number][];
   distanceMeters: number;
   estimatedTimeSeconds: number;
+}
+
+export interface RouteResult {
+  // Mirrors the chosen route (alternative if present, else baseline).
+  waypoints: [number, number][];
+  distanceMeters: number;
+  estimatedTimeSeconds: number;
+  // Per-trip routes. alternativeRoute is null when avoidance didn't improve on baseline.
+  baselineRoute?: RouteLeg;
+  alternativeRoute?: RouteLeg | null;
   avoidedObstaclesCount?: number;
   warnings?: string[];
   isAccessible?: boolean;
@@ -39,6 +49,15 @@ function normalizeWaypoints(raw: any[]): [number, number][] {
   });
 }
 
+function normalizeLeg(raw: any): RouteLeg | undefined {
+  if (!raw) return undefined;
+  return {
+    waypoints: normalizeWaypoints(raw.waypoints ?? []),
+    distanceMeters: raw.distanceMeters,
+    estimatedTimeSeconds: raw.estimatedTimeSeconds,
+  };
+}
+
 export async function calculateRoute(req: RouteRequest): Promise<RouteResult | null> {
   try {
     const res = await fetch(`${API_BASE}/api/routes/calculate`, {
@@ -49,7 +68,12 @@ export async function calculateRoute(req: RouteRequest): Promise<RouteResult | n
     if (!res.ok) return null;
     const data = await res.json().catch(() => null);
     if (!data) return null;
-    return { ...data, waypoints: normalizeWaypoints(data.waypoints ?? []) };
+    return {
+      ...data,
+      waypoints: normalizeWaypoints(data.waypoints ?? []),
+      baselineRoute: normalizeLeg(data.baselineRoute),
+      alternativeRoute: data.alternativeRoute ? normalizeLeg(data.alternativeRoute) : null,
+    };
   } catch {
     return null;
   }

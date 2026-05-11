@@ -119,47 +119,81 @@ def _call_valhalla(origin, destination, exclude_locations=None):
     return waypoints, distance_m, duration_s
 
 
+def _route_payload(waypoints, distance, duration):
+    return {
+        'waypoints': waypoints,
+        'distanceMeters': round(distance, 1),
+        'estimatedTimeSeconds': round(duration),
+    }
+
+
 def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     """
-    Pedestrian route using Valhalla.
-    - Passes verified obstacles as exclude_locations so Valhalla avoids them.
-    - Falls back to direct route if avoidance fails.
-    - Warns about unverified obstacles near the final route.
+    Pedestrian route using Valhalla, computed in two passes:
+      1. baseline route with no exclusions → obstacles that lie on it (on_baseline)
+      2. if on_baseline is non-empty, avoidance route excluding only those obstacles
+         → obstacles still on it (on_avoidance)
+    avoidedObstaclesCount = len(on_baseline) - len(on_avoidance), so it only counts
+    obstacles relevant to *this* trip.
+
+    Returns baselineRoute always, and alternativeRoute only when the second pass
+    actually improves on the baseline (fewer obstacles on the path).
+    Warnings and isAccessible are derived from the chosen route.
     """
     origin = [origin_lat, origin_lng]
     destination = [dest_lat, dest_lng]
 
     verified_obstacles = _get_verified_obstacles()
-
-    # Try routing with obstacle avoidance
-    avoided_count = 0
-    try:
-        waypoints, distance, duration = _call_valhalla(
-            origin, destination,
-            exclude_locations=verified_obstacles if verified_obstacles else None,
-        )
-    except ValueError:
-        # Avoidance route failed — fall back to direct route
-        waypoints, distance, duration = _call_valhalla(origin, destination)
-
-    # Check which verified obstacles are still on the final route
-    on_route = _obstacles_on_route(waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M)
-    avoided_count = len(verified_obstacles) - len(on_route)
-
-    # Build warnings
-    warnings = []
-    for obs in on_route:
-        warnings.append(f"Verified obstacle on route: {obs['title']} ({obs['category']})")
-
     unverified = _get_unverified_obstacles()
-    for obs in _obstacles_on_route(waypoints, unverified, UNVERIFIED_WARNING_RADIUS_M):
+
+    # 1) Baseline: shortest route, no exclusions.
+    baseline_waypoints, baseline_distance, baseline_duration = _call_valhalla(origin, destination)
+    on_baseline = _obstacles_on_route(
+        baseline_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
+    )
+
+    baseline_route = _route_payload(baseline_waypoints, baseline_distance, baseline_duration)
+    alternative_route = None
+    chosen_waypoints = baseline_waypoints
+    on_chosen = on_baseline
+
+    # 2) Try avoidance only if the baseline actually hits obstacles.
+    if on_baseline:
+        try:
+            alt_waypoints, alt_distance, alt_duration = _call_valhalla(
+                origin, destination, exclude_locations=on_baseline,
+            )
+            on_avoidance = _obstacles_on_route(
+                alt_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
+            )
+            # Only surface the alternative if it genuinely improves on baseline.
+            if len(on_avoidance) < len(on_baseline):
+                alternative_route = _route_payload(alt_waypoints, alt_distance, alt_duration)
+                chosen_waypoints = alt_waypoints
+                on_chosen = on_avoidance
+        except ValueError:
+            # Avoidance failed — stick with baseline.
+            pass
+
+    avoided_count = len(on_baseline) - len(on_chosen)
+
+    warnings = [
+        f"Verified obstacle on route: {obs['title']} ({obs['category']})"
+        for obs in on_chosen
+    ]
+    for obs in _obstacles_on_route(chosen_waypoints, unverified, UNVERIFIED_WARNING_RADIUS_M):
         warnings.append(f"Unverified obstacle nearby: {obs['title']}")
 
+    chosen_route = alternative_route or baseline_route
     return {
-        'waypoints': waypoints,
-        'distanceMeters': round(distance, 1),
-        'estimatedTimeSeconds': round(duration),
+        # Backward-compat: top-level mirrors the chosen route.
+        'waypoints': chosen_route['waypoints'],
+        'distanceMeters': chosen_route['distanceMeters'],
+        'estimatedTimeSeconds': chosen_route['estimatedTimeSeconds'],
+        # New per-trip routes.
+        'baselineRoute': baseline_route,
+        'alternativeRoute': alternative_route,
         'avoidedObstaclesCount': avoided_count,
         'warnings': warnings,
-        'isAccessible': len(on_route) == 0,
+        'isAccessible': len(on_chosen) == 0,
     }
