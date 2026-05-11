@@ -76,6 +76,14 @@ export function landingRouteForRole(role: UserRole | undefined | null): string {
 export function parseDRFError(data: any): string {
   if (!data) return 'Something went wrong.';
   if (data.detail) return data.detail;
+  // Backend's custom exception handler wraps errors as
+  //   { error: { detail: "..." } }  or  occasionally  { error: "..." }
+  // Unwrap here, otherwise the generic loop below stringifies the inner
+  // object as "[object Object]". (Issue #233)
+  if (data.error) {
+    if (typeof data.error === 'string') return data.error;
+    if (typeof data.error.detail === 'string') return data.error.detail;
+  }
   if (typeof data === 'string') return data;
   const msgs: string[] = [];
   for (const [, errors] of Object.entries(data)) {
