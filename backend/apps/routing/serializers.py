@@ -15,10 +15,20 @@ class RouteRequestSerializer(serializers.Serializer):
     preferences = PreferencesSerializer(required=False)
 
 
-class RouteResponseSerializer(serializers.Serializer):
+class RouteLegSerializer(serializers.Serializer):
     waypoints = serializers.ListField()
     distanceMeters = serializers.FloatField()
     estimatedTimeSeconds = serializers.FloatField()
+
+
+class RouteResponseSerializer(serializers.Serializer):
+    # Backward-compat: mirror of the chosen route (alternative if returned, else baseline).
+    waypoints = serializers.ListField()
+    distanceMeters = serializers.FloatField()
+    estimatedTimeSeconds = serializers.FloatField()
+    # Per-trip routes. alternativeRoute is null when avoidance didn't improve on baseline.
+    baselineRoute = RouteLegSerializer()
+    alternativeRoute = RouteLegSerializer(allow_null=True)
     avoidedObstaclesCount = serializers.IntegerField()
     warnings = serializers.ListField(child=serializers.CharField())
     isAccessible = serializers.BooleanField()

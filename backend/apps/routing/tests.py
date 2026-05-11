@@ -5,7 +5,12 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.routing.serializers import RouteResponseSerializer
-from apps.routing.services import WALKING_SPEED_MS
+from apps.routing.services import (
+    OBSTACLE_PROXIMITY_RADIUS_M,
+    WALKING_SPEED_MS,
+    _obstacles_on_route,
+    _point_to_segment_distance_m,
+)
 from apps.users.models import MobilityProfile, User
 
 
@@ -33,6 +38,24 @@ def mock_call_valhalla(origin, destination, exclude_locations=None):
 def mock_call_valhalla_failure(origin, destination, exclude_locations=None):
     """Simulate Valhalla routing failure."""
     raise ValueError('Routing service unavailable.')
+
+
+# Far enough from MOCK_WAYPOINTS that no obstacle near the baseline lands within
+# OBSTACLE_PROXIMITY_RADIUS_M of this alternative path.
+MOCK_ALT_WAYPOINTS = [
+    [41.1000, 29.0700],
+    [41.1010, 29.0710],
+    [41.1020, 29.0720],
+    [41.1030, 29.0730],
+]
+
+
+def mock_call_valhalla_two_route(origin, destination, exclude_locations=None):
+    """Return MOCK_WAYPOINTS for the baseline call, MOCK_ALT_WAYPOINTS when
+    exclude_locations is provided (i.e. the avoidance pass)."""
+    if exclude_locations:
+        return MOCK_ALT_WAYPOINTS, MOCK_DISTANCE + 100, MOCK_DURATION + 90
+    return MOCK_WAYPOINTS, MOCK_DISTANCE, MOCK_DURATION
 
 
 def make_reporter():
@@ -164,6 +187,87 @@ class CalculateRouteViewTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
+@patch('apps.routing.services._get_unverified_obstacles', return_value=[])
+class PerTripAvoidanceTest(TestCase):
+    """Acceptance tests for per-trip baseline/alternative routing."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.url = '/api/routes/calculate'
+
+    @patch('apps.routing.services._get_verified_obstacles', return_value=[
+        # Far from MOCK_WAYPOINTS — not on the baseline.
+        {'id': 99, 'latitude': 41.2000, 'longitude': 29.2000,
+         'title': 'Distant obstacle', 'category': 'BLOCKED_PATH'},
+    ])
+    @patch('apps.routing.services._call_valhalla', side_effect=mock_call_valhalla)
+    def test_no_nearby_obstacles_returns_one_route(
+        self, mock_valhalla, mock_verified, mock_unverified,
+    ):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertEqual(data['avoidedObstaclesCount'], 0)
+        self.assertTrue(data['isAccessible'])
+        self.assertIsNotNone(data['baselineRoute'])
+        self.assertIsNone(data['alternativeRoute'])
+        # Only the baseline Valhalla call should have happened.
+        self.assertEqual(mock_valhalla.call_count, 1)
+
+    @patch('apps.routing.services._get_verified_obstacles', return_value=[
+        # Within OBSTACLE_PROXIMITY_RADIUS_M of MOCK_WAYPOINTS — on the baseline.
+        {'id': 1, 'latitude': 41.0835, 'longitude': 29.0505,
+         'title': 'Blocked path', 'category': 'BLOCKED_PATH'},
+    ])
+    @patch('apps.routing.services._call_valhalla', side_effect=mock_call_valhalla_two_route)
+    def test_baseline_obstacle_diverted_returns_two_routes(
+        self, mock_valhalla, mock_verified, mock_unverified,
+    ):
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        # Both routes returned.
+        self.assertIsNotNone(data['baselineRoute'])
+        self.assertIsNotNone(data['alternativeRoute'])
+        self.assertEqual(len(data['baselineRoute']['waypoints']), len(MOCK_WAYPOINTS))
+        self.assertEqual(len(data['alternativeRoute']['waypoints']), len(MOCK_ALT_WAYPOINTS))
+
+        # Per-trip count: 1 obstacle on baseline, 0 on alternative.
+        self.assertEqual(data['avoidedObstaclesCount'], 1)
+        self.assertTrue(data['isAccessible'])
+        # No warning about the obstacle since the chosen (alternative) route avoids it.
+        self.assertFalse(any('Blocked path' in w for w in data['warnings']))
+        # Top-level fields mirror the chosen (alternative) route.
+        self.assertEqual(data['waypoints'], data['alternativeRoute']['waypoints'])
+        # Two Valhalla calls: baseline + avoidance.
+        self.assertEqual(mock_valhalla.call_count, 2)
+
+    @patch('apps.routing.services._get_verified_obstacles', return_value=[
+        {'id': 1, 'latitude': 41.0835, 'longitude': 29.0505,
+         'title': 'Blocked path', 'category': 'BLOCKED_PATH'},
+    ])
+    @patch('apps.routing.services._call_valhalla', side_effect=mock_call_valhalla)
+    def test_unchanged_avoidance_returns_one_route(
+        self, mock_valhalla, mock_verified, mock_unverified,
+    ):
+        """Both passes return the same waypoints, so on_baseline == on_avoidance —
+        the alternative is suppressed."""
+        response = self.client.post(self.url, make_valid_payload(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+
+        self.assertIsNotNone(data['baselineRoute'])
+        self.assertIsNone(data['alternativeRoute'])
+        self.assertEqual(data['avoidedObstaclesCount'], 0)
+        # Chosen route is baseline; obstacle still on it → not accessible, warned.
+        self.assertFalse(data['isAccessible'])
+        self.assertTrue(any('Blocked path' in w for w in data['warnings']))
+        # Two Valhalla calls (baseline + attempted avoidance), but only one route surfaced.
+        self.assertEqual(mock_valhalla.call_count, 2)
+
+
 class CalculateRouteFailureTest(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -240,10 +344,17 @@ class RouteResponseSerializerTest(TestCase):
     """Unit tests for RouteResponseSerializer field types and values (Issue #201)."""
 
     def _make_data(self, **overrides):
-        data = {
+        baseline = {
             'waypoints': [[41.0825, 29.0510], [41.0865, 29.0445]],
             'distanceMeters': 620.5,
             'estimatedTimeSeconds': 558,
+        }
+        data = {
+            'waypoints': baseline['waypoints'],
+            'distanceMeters': baseline['distanceMeters'],
+            'estimatedTimeSeconds': baseline['estimatedTimeSeconds'],
+            'baselineRoute': baseline,
+            'alternativeRoute': None,
             'avoidedObstaclesCount': 2,
             'warnings': ['Unverified obstacle nearby: Pothole'],
             'isAccessible': True,
@@ -296,6 +407,41 @@ class RouteResponseSerializerTest(TestCase):
     def test_is_accessible_false_when_obstacles_on_route(self):
         s = RouteResponseSerializer(self._make_data(isAccessible=False))
         self.assertFalse(s.data['isAccessible'])
+
+
+class ObstacleOnRouteGeometryTest(TestCase):
+    """Direct unit tests for _obstacles_on_route's point-to-segment proximity check."""
+
+    def test_point_to_segment_perpendicular_distance(self):
+        # Segment ~177m long between MOCK_WAYPOINTS[4] and [5]. Midpoint sits between
+        # the two waypoints at ~88m from each — outside a 40m waypoint-only check,
+        # but 0m from the segment itself.
+        a_lat, a_lng = 41.0850, 29.0490
+        b_lat, b_lng = 41.0855, 29.0470
+        mid_lat = (a_lat + b_lat) / 2
+        mid_lng = (a_lng + b_lng) / 2
+        d = _point_to_segment_distance_m(mid_lat, mid_lng, a_lat, a_lng, b_lat, b_lng)
+        self.assertLess(d, 1.0)  # essentially on the segment
+
+    def test_obstacle_between_waypoints_is_detected(self):
+        # Obstacle sits near the midpoint of segment 4↔5 of MOCK_WAYPOINTS, far
+        # enough from both endpoints that the old waypoint-only check missed it.
+        obstacles = [
+            {'id': 1, 'latitude': 41.08525, 'longitude': 29.0480,
+             'title': 'Mid-segment', 'category': 'BLOCKED_PATH'},
+        ]
+        on_route = _obstacles_on_route(MOCK_WAYPOINTS, obstacles, OBSTACLE_PROXIMITY_RADIUS_M)
+        self.assertEqual(len(on_route), 1)
+        self.assertEqual(on_route[0]['id'], 1)
+
+    def test_obstacle_far_from_segment_is_not_detected(self):
+        # Same midpoint but pushed far enough perpendicular to be > 40m off the segment.
+        obstacles = [
+            {'id': 2, 'latitude': 41.0860, 'longitude': 29.0480,
+             'title': 'Off-segment', 'category': 'BLOCKED_PATH'},
+        ]
+        on_route = _obstacles_on_route(MOCK_WAYPOINTS, obstacles, OBSTACLE_PROXIMITY_RADIUS_M)
+        self.assertEqual(on_route, [])
 
 
 class WalkingSpeedFallbackTest(TestCase):

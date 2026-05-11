@@ -301,12 +301,42 @@ export default function PlanView() {
           />
           <ZoomControl position="bottomright" />
           <ClickHandler active={!!pinMode} onPick={handleMapClick} />
-          <FitBounds origin={originLL} dest={destLL} route={route?.waypoints ?? null} />
+          <FitBounds
+            origin={originLL}
+            dest={destLL}
+            route={
+              route
+                ? [
+                    ...(route.baselineRoute?.waypoints ?? route.waypoints ?? []),
+                    ...(route.alternativeRoute?.waypoints ?? []),
+                  ]
+                : null
+            }
+          />
 
           {originLL && <Marker position={originLL} icon={ORIGIN_ICON} />}
           {destLL   && <Marker position={destLL}   icon={DEST_ICON}   />}
 
-          {route && route.waypoints.length > 1 && (
+          {/* Baseline dashed underneath when there's also an alternative. */}
+          {route?.alternativeRoute && route.baselineRoute && route.baselineRoute.waypoints.length > 1 && (
+            <Polyline
+              positions={route.baselineRoute.waypoints}
+              pathOptions={{
+                color: COLORS.orange500,
+                weight: 5,
+                opacity: 0.9,
+                lineJoin: 'round',
+                dashArray: '10 8',
+              }}
+            />
+          )}
+          {route?.alternativeRoute && route.alternativeRoute.waypoints.length > 1 && (
+            <Polyline
+              positions={route.alternativeRoute.waypoints}
+              pathOptions={{ color: COLORS.blue500, weight: 5, opacity: 0.9, lineJoin: 'round' }}
+            />
+          )}
+          {!route?.alternativeRoute && route && route.waypoints.length > 1 && (
             <Polyline
               positions={route.waypoints}
               pathOptions={{ color: COLORS.blue500, weight: 5, opacity: 0.85, lineJoin: 'round' }}
@@ -336,6 +366,16 @@ export default function PlanView() {
                 <Text style={s.summaryLabel}>Avoided</Text>
               </View>
             </View>
+
+            {route.alternativeRoute && route.baselineRoute && (
+              <View style={s.baselineCompareRow}>
+                <View style={s.baselineSwatch} />
+                <Text style={s.baselineCompareLabel}>Direct (no avoidance):</Text>
+                <Text style={s.baselineCompareValue}>
+                  {formatDistance(route.baselineRoute.distanceMeters)} · {formatTime(route.baselineRoute.estimatedTimeSeconds)}
+                </Text>
+              </View>
+            )}
 
             {route.warnings && route.warnings.length > 0 && (
               <View style={s.warningsBox}>
@@ -553,6 +593,24 @@ const s = StyleSheet.create({
   },
   warningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   warningText: { flex: 1, fontSize: 12, color: COLORS.gray700, lineHeight: 17 },
+
+  baselineCompareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray100,
+  },
+  baselineSwatch: {
+    width: 22,
+    height: 3,
+    backgroundColor: COLORS.orange500,
+    borderRadius: 1.5,
+  },
+  baselineCompareLabel: { fontSize: 12, color: COLORS.gray500, fontWeight: '500' },
+  baselineCompareValue: { fontSize: 12, color: COLORS.gray800, fontWeight: '600' },
 
   // Guest prefs overlay
   overlay: {
