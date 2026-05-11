@@ -119,7 +119,10 @@ def _obstacles_on_route(waypoints, obstacles, radius_m):
 def _call_valhalla(origin, destination, exclude_locations=None):
     """
     Call Valhalla pedestrian routing API.
-    exclude_locations makes Valhalla avoid road segments near those points.
+    exclude_locations: list of obstacle dicts with 'latitude'/'longitude'.
+    Each obstacle is passed as a small exclude_polygon (~50 m square) so
+    Valhalla avoids the road *segment* around the obstacle, not just the
+    nearest intersection (which exclude_locations snaps to).
     Returns (waypoints, distance_m, duration_s).
     """
     body = {
@@ -132,8 +135,15 @@ def _call_valhalla(origin, destination, exclude_locations=None):
     }
 
     if exclude_locations:
-        body['exclude_locations'] = [
-            {'lat': float(loc['latitude']), 'lon': float(loc['longitude'])}
+        r = 0.00045  # ~50 m at mid-latitudes
+        body['exclude_polygons'] = [
+            [
+                [float(loc['longitude']) - r, float(loc['latitude']) - r],
+                [float(loc['longitude']) + r, float(loc['latitude']) - r],
+                [float(loc['longitude']) + r, float(loc['latitude']) + r],
+                [float(loc['longitude']) - r, float(loc['latitude']) + r],
+                [float(loc['longitude']) - r, float(loc['latitude']) - r],
+            ]
             for loc in exclude_locations
         ]
 
@@ -191,18 +201,23 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     origin = [origin_lat, origin_lng]
     destination = [dest_lat, dest_lng]
 
+    # 1) Baseline: shortest route, no exclusions.
+    baseline_waypoints, baseline_distance, baseline_duration = _call_valhalla(origin, destination)
+
+    # Build bbox from actual baseline waypoints so obstacles that lie on the
+    # real route (but outside the direct origin-destination box) are captured.
     pad = ROUTE_OBSTACLE_PADDING_DEG
+    lats = [wp[0] for wp in baseline_waypoints]
+    lngs = [wp[1] for wp in baseline_waypoints]
     route_bbox = {
-        'south': min(origin_lat, dest_lat) - pad,
-        'north': max(origin_lat, dest_lat) + pad,
-        'west': min(origin_lng, dest_lng) - pad,
-        'east': max(origin_lng, dest_lng) + pad,
+        'south': min(lats) - pad,
+        'north': max(lats) + pad,
+        'west': min(lngs) - pad,
+        'east': max(lngs) + pad,
     }
     verified_obstacles = _get_verified_obstacles(bbox=route_bbox)
     unverified = _get_unverified_obstacles()
 
-    # 1) Baseline: shortest route, no exclusions.
-    baseline_waypoints, baseline_distance, baseline_duration = _call_valhalla(origin, destination)
     on_baseline = _obstacles_on_route(
         baseline_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
     )
