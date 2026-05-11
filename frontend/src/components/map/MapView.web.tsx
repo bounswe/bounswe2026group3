@@ -61,11 +61,15 @@ const ORIGIN_ICON = makeCircleIcon(COLORS.green700);
 const DEST_ICON = makeCircleIcon(COLORS.red500);
 const SEARCH_PIN_ICON = makeCircleIcon(COLORS.red500);
 
+const _indoorIconCache: Record<string, L.DivIcon> = {};
+
 /** Indoor obstacle: circle with a small white 'i' badge — same colour coding as outdoor.
  *  When `hollow` is true (unverified), inverts to white background +
  *  dashed category-colored border + category-colored 'i'. */
-const makeIndoorCircleIcon = (color: string, hollow = false) =>
-  L.divIcon({
+const makeIndoorCircleIcon = (color: string, hollow = false) => {
+  const key = `${color}:${hollow}`;
+  if (_indoorIconCache[key]) return _indoorIconCache[key];
+  const icon = L.divIcon({
     html: `<div style="
       width:22px;height:22px;border-radius:50%;
       background:${hollow ? 'white' : color};
@@ -79,6 +83,9 @@ const makeIndoorCircleIcon = (color: string, hollow = false) =>
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
+  _indoorIconCache[key] = icon;
+  return icon;
+};
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -208,14 +215,17 @@ export default function MapView() {
   const router = useRouter();
   const mapRef = useRef<L.Map | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const boundsDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const obstacleMapRef = useRef<Map<string, Obstacle>>(new Map());
+  const fetchedBoundsRef = useRef<{ north: number; south: number; east: number; west: number } | null>(null);
+  const lastShowPassiveRef = useRef<boolean>(false);
+  const currentBoundsRef = useRef<L.LatLngBounds | null>(null);
 
   // Obstacle state
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
-  const [currentBounds, setCurrentBounds] = useState<L.LatLngBounds | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [boundsKey, setBoundsKey] = useState('');
   const [detailMap, setDetailMap] = useState<Record<string, ObstacleDetail | 'loading'>>({});
-  const prefetchedRef = useRef(false);
   const [showPassive, setShowPassive] = useState(false);
 
   // Search state
@@ -299,32 +309,55 @@ export default function MapView() {
   // ── Obstacle loading ─────────────────────────────────────────────────────
 
   useEffect(() => {
-    prefetchedRef.current = true;
-    fetchObstacles(DEFAULT_BBOX, false).then((data) => {
-      setObstacles((prev) => (prev.length === 0 ? data : prev));
-    });
-  }, []);
+    const b = currentBoundsRef.current;
+    if (!b) return;
 
-  useEffect(() => {
-    if (!currentBounds) return;
+    const nb = {
+      north: b.getNorth(),
+      south: b.getSouth(),
+      east: b.getEast(),
+      west: b.getWest(),
+    };
+
+    if (lastShowPassiveRef.current !== showPassive) {
+      lastShowPassiveRef.current = showPassive;
+      obstacleMapRef.current.clear();
+      fetchedBoundsRef.current = null;
+    }
+
+    const fb = fetchedBoundsRef.current;
+    if (fb &&
+        nb.north <= fb.north &&
+        nb.south >= fb.south &&
+        nb.east <= fb.east &&
+        nb.west >= fb.west) {
+      return;
+    }
+
     let cancelled = false;
-    fetchObstacles(
-      {
-        north: currentBounds.getNorth(),
-        south: currentBounds.getSouth(),
-        east: currentBounds.getEast(),
-        west: currentBounds.getWest(),
-      },
-      showPassive,
-    ).then((data) => { if (!cancelled) setObstacles(data); });
+    fetchObstacles(nb, showPassive).then((data) => {
+      if (cancelled) return;
+      for (const obs of data) obstacleMapRef.current.set(obs.id, obs);
+      const cur = fetchedBoundsRef.current;
+      fetchedBoundsRef.current = cur ? {
+        north: Math.max(cur.north, nb.north),
+        south: Math.min(cur.south, nb.south),
+        east: Math.max(cur.east, nb.east),
+        west: Math.min(cur.west, nb.west),
+      } : nb;
+      setObstacles([...obstacleMapRef.current.values()]);
+    });
     return () => { cancelled = true; };
   }, [boundsKey, showPassive]);
 
   const handleBoundsChange = useCallback((b: L.LatLngBounds, z: number) => {
-    setCurrentBounds(b);
-    setZoom(z);
-    const key = `${b.getNorth().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getWest().toFixed(4)}`;
-    setBoundsKey(key);
+    currentBoundsRef.current = b;
+    const key = `${b.getNorth().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getWest().toFixed(3)}`;
+    if (boundsDebounceTimer.current) clearTimeout(boundsDebounceTimer.current);
+    boundsDebounceTimer.current = setTimeout(() => {
+      setZoom(z);
+      setBoundsKey(key);
+    }, 400);
   }, []);
 
   const handlePinClick = useCallback(async (id: string) => {
@@ -552,7 +585,7 @@ export default function MapView() {
                       obs={obs}
                       detail={detail}
                       loading={detailLoading}
-                      onViewDetails={() => router.push(`/report/${obs.id}`)}
+                      onViewDetails={() => { mapRef.current?.closePopup(); router.push(`/report/${obs.id}`); }}
                     />
                   </Popup>
                 </Marker>
@@ -579,7 +612,7 @@ export default function MapView() {
                     obs={obs}
                     detail={detail}
                     loading={detailLoading}
-                    onViewDetails={() => router.push(`/report/${obs.id}`)}
+                    onViewDetails={() => { mapRef.current?.closePopup(); router.push(`/report/${obs.id}`); }}
                   />
                 </Popup>
               </CircleMarker>
