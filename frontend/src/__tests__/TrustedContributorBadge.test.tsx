@@ -125,10 +125,14 @@ describe('Profile screen — Trusted Contributor badge & Trust Score', () => {
       data: makeUser({ role: 'USER' }),
     } as any);
 
-    const { queryByTestId, findByTestId } = render(<ProfileScreen />);
+    const { queryByTestId, queryByText, findByTestId } = render(<ProfileScreen />);
     // Wait for the screen to finish loading (trust score renders after fetch)
     await findByTestId('trust-score-value');
     expect(queryByTestId('trusted-contributor-badge')).toBeNull();
+    // Regression guards for the profile-badges cleanup: the green ACTIVE pill
+    // and the MILESTONE 2 "Badges" stub card must not render.
+    expect(queryByText('ACTIVE')).toBeNull();
+    expect(queryByText(/MILESTONE 2/i)).toBeNull();
   });
 
   it('does NOT render the badge for unrelated roles (e.g. "ADMIN")', async () => {

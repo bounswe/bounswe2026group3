@@ -88,10 +88,11 @@ export default function ProfileScreen() {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.name}>{user?.fullName || '—'}</Text>
             <Text style={s.email}>{user?.email || '—'}</Text>
-            <View style={s.badgeRow}>
-              <View style={[s.badge, s.badgeGreen]}><Ionicons name="shield-checkmark" size={12} color={COLORS.green700} /><Text style={[s.badgeText, { color: COLORS.green700 }]}>{user?.status || 'ACTIVE'}</Text></View>
-              {user?.role === 'TRUSTED_CONTRIBUTOR' && <TrustedContributorBadge />}
-            </View>
+            {user?.role === 'TRUSTED_CONTRIBUTOR' && (
+              <View style={s.badgeRow}>
+                <TrustedContributorBadge />
+              </View>
+            )}
           </View>
           <TouchableOpacity style={s.editBtn} onPress={() => { setEditing(!editing); setEditError(''); }}><Ionicons name="create-outline" size={16} color={COLORS.gray500} /></TouchableOpacity>
         </View>
@@ -153,11 +154,6 @@ export default function ProfileScreen() {
       </View>
 
       <View style={[s.card, { marginBottom: 20 }]}>
-        <View style={s.cardTitleRow}><Ionicons name="ribbon-outline" size={16} color={COLORS.green600} /><Text style={s.cardTitle}>Badges</Text></View>
-        <View style={s.stub}><View style={s.stubTag}><Text style={s.stubTagText}>MILESTONE 2</Text></View><Text style={s.stubP}>Earned badges from contributions and community activity.</Text></View>
-      </View>
-
-      <View style={[s.card, { marginBottom: 20 }]}>
         <View style={s.cardTitleRow}><Ionicons name="notifications-outline" size={16} color={COLORS.green600} /><Text style={s.cardTitle}>Notifications</Text></View>
         <View style={s.toggleRow}>
           <View style={{ flex: 1 }}>
@@ -213,10 +209,6 @@ const s = StyleSheet.create({
   name: { fontSize: 18, fontWeight: '800', color: COLORS.gray900 },
   email: { fontSize: 13, color: COLORS.gray500, marginTop: 1 },
   badgeRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
-  badgeGreen: { backgroundColor: COLORS.green100 },
-  badgeAmber: { backgroundColor: COLORS.orange100 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   trustValue: { fontSize: 32, fontWeight: '800', color: COLORS.green700, minWidth: 56 },
   trustHint: { flex: 1, fontSize: 12, color: COLORS.gray500, lineHeight: 17 },
@@ -231,8 +223,6 @@ const s = StyleSheet.create({
   btnOutline: { flex: 1, backgroundColor: COLORS.white, paddingVertical: 11, borderRadius: 10, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.gray300 },
   btnOutlineText: { color: COLORS.gray700, fontSize: 14, fontWeight: '700' },
   stub: { backgroundColor: COLORS.gray50, borderWidth: 2, borderStyle: 'dashed', borderColor: COLORS.gray300, borderRadius: 10, padding: 20, alignItems: 'center' },
-  stubTag: { backgroundColor: COLORS.orange100, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100, marginBottom: 6 },
-  stubTagText: { fontSize: 10, fontWeight: '800', color: COLORS.orange500, letterSpacing: 0.5 },
   stubP: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', lineHeight: 20 },
   placeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.gray200 },
   placeLabel: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
