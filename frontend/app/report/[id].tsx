@@ -216,7 +216,9 @@ export default function ReportDetailScreen() {
         <InteractionBar
           reportId={detail.id}
           reporterId={detail.reporterId}
+          status={detail.status}
           upvoteCount={detail.upvoteCount}
+          upvoteThreshold={detail.upvoteThreshold}
           flagCount={detail.flagCount}
           userUpvoted={detail.userUpvoted}
           userFlagged={detail.userFlagged}
@@ -232,6 +234,7 @@ export default function ReportDetailScreen() {
         userUpvoted={detail.userUpvoted}
         userConfirmed={detail.userConfirmed}
         confirmationCount={detail.confirmationCount}
+        confirmationThreshold={detail.confirmationThreshold}
         currentUserId={currentUserId}
         onResolved={(newStatus, newCount) =>
           setDetail((d) =>

@@ -11,6 +11,7 @@ function authHeaders(): Record<string, string> {
 export interface UpvoteResponse {
   reportId?: string;
   upvoteCount?: number;
+  upvoteThreshold?: number;
   status?: string;
   autoVerified?: boolean;
   userUpvoted?: boolean;
@@ -50,6 +51,7 @@ export interface ConfirmResolutionResponse {
   reportId: string;
   status: string;
   confirmationCount: number;
+  confirmationThreshold?: number;
 }
 
 export async function confirmResolution(

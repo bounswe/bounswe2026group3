@@ -18,6 +18,7 @@ const BASE_PROPS = {
   userUpvoted: false,
   userConfirmed: false,
   confirmationCount: 1,
+  confirmationThreshold: 3,
   currentUserId: 'reporter-1',
   onResolved: jest.fn(),
 };
@@ -139,4 +140,20 @@ it('shows an alert and does not call onResolved on API failure', async () => {
   expect(alertSpy).toHaveBeenCalled();
   expect(onResolved).not.toHaveBeenCalled();
   alertSpy.mockRestore();
+});
+
+// ── Progress indicator ──────────────────────────────────────────────────────
+
+it('shows X / N progress on the active button', () => {
+  const { getByText } = render(
+    <ConfirmResolutionButton {...BASE_PROPS} confirmationCount={1} confirmationThreshold={3} />,
+  );
+  expect(getByText('1 / 3 confirmed')).toBeTruthy();
+});
+
+it('shows X / N progress in the recorded state', () => {
+  const { getByText } = render(
+    <ConfirmResolutionButton {...BASE_PROPS} userConfirmed confirmationCount={2} confirmationThreshold={3} />,
+  );
+  expect(getByText(/2 \/ 3 confirmed/)).toBeTruthy();
 });

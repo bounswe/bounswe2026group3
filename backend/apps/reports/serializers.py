@@ -40,6 +40,7 @@ class ReportResponseSerializer(serializers.Serializer):
 class UpvoteResponseSerializer(serializers.Serializer):
     reportId = serializers.UUIDField()
     upvoteCount = serializers.IntegerField()
+    upvoteThreshold = serializers.IntegerField()
     userUpvoted = serializers.BooleanField()
     status = serializers.CharField()
     autoVerified = serializers.BooleanField()
@@ -54,6 +55,7 @@ class FlagResponseSerializer(serializers.Serializer):
 class ConfirmResolutionResponseSerializer(serializers.Serializer):
     reportId = serializers.UUIDField()
     confirmationCount = serializers.IntegerField()
+    confirmationThreshold = serializers.IntegerField()
     status = serializers.CharField()
 
 

@@ -11,7 +11,9 @@ const mockPostFlag = interactionsApi.postFlag as jest.MockedFunction<typeof inte
 const BASE_PROPS = {
   reportId: 'report-123',
   reporterId: 'reporter-456',
+  status: 'VERIFIED',
   upvoteCount: 3,
+  upvoteThreshold: 5,
   flagCount: 1,
   userUpvoted: false,
   userFlagged: false,
@@ -178,4 +180,20 @@ it('shows disabled views and hides interactive buttons when user is the reporter
   expect(getByTestId('flag-disabled')).toBeTruthy();
   expect(queryByTestId('upvote-button')).toBeNull();
   expect(queryByTestId('flag-button')).toBeNull();
+});
+
+// ── Progress indicator ────────────────────────────────────────────────────────
+
+it('shows X / N format when status is UNVERIFIED', () => {
+  const { getByTestId } = render(
+    <InteractionBar {...BASE_PROPS} status="UNVERIFIED" upvoteCount={2} upvoteThreshold={5} />,
+  );
+  expect(getByTestId('upvote-count').props.children).toBe('2 / 5');
+});
+
+it('shows plain count when status is not UNVERIFIED', () => {
+  const { getByTestId } = render(
+    <InteractionBar {...BASE_PROPS} status="VERIFIED" upvoteCount={6} upvoteThreshold={5} />,
+  );
+  expect(getByTestId('upvote-count').props.children).toBe(6);
 });

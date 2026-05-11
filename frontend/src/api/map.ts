@@ -28,8 +28,10 @@ export interface StatusChange {
 export interface ObstacleDetail extends Obstacle {
   photos: PhotoItem[];
   upvoteCount: number;
+  upvoteThreshold: number;
   flagCount: number;
   confirmationCount: number;
+  confirmationThreshold: number;
   userUpvoted: boolean;
   userFlagged: boolean;
   userConfirmed: boolean;
@@ -120,8 +122,10 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
         uploadedAt: p.uploadedAt ?? p.uploaded_at,
       })),
       upvoteCount: raw.upvoteCount ?? 0,
+      upvoteThreshold: raw.upvoteThreshold ?? 5,
       flagCount: raw.flagCount ?? 0,
       confirmationCount: raw.confirmationCount ?? 0,
+      confirmationThreshold: raw.confirmationThreshold ?? 3,
       userUpvoted: raw.userUpvoted ?? false,
       userFlagged: raw.userFlagged ?? false,
       userConfirmed: raw.userConfirmed ?? false,
