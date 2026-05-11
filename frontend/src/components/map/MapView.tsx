@@ -14,7 +14,7 @@ import SavePlaceModal from './SavePlaceModal';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
 import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -293,10 +293,44 @@ export default function MapView() {
   const source = useMemo(() => ({ html: MAP_HTML }), []);
   const prefetchedRef = useRef<Obstacle[] | null>(null);
 
+  // Deep-link focus (e.g. tapping a saved place on the profile screen).
+  // Held in a ref so the READY handler can apply it if the WebView wasn't
+  // ready when the params arrived.
+  const pendingFocusRef = useRef<SearchResult | null>(null);
+  const params = useLocalSearchParams<{ focusLat?: string; focusLng?: string; focusName?: string }>();
+  const focusLat = typeof params.focusLat === 'string' ? params.focusLat : null;
+  const focusLng = typeof params.focusLng === 'string' ? params.focusLng : null;
+  const focusName = typeof params.focusName === 'string' ? params.focusName : null;
+
   // Filter state
   const [showPassive, setShowPassive] = useState(false);
 
   const { location: currentLocation } = useLocation();
+
+  useEffect(() => {
+    if (!focusLat || !focusLng || !focusName) return;
+    const lat = parseFloat(focusLat);
+    const lng = parseFloat(focusLng);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+    const result: SearchResult = { id: `focus:${lat},${lng}`, name: focusName, latitude: lat, longitude: lng };
+    setQuery(result.name);
+    setSuggestions([]);
+    setSelectedLocation(result);
+    setSearchFocused(false);
+    setDest({ lat: result.latitude, lng: result.longitude, label: result.name });
+    setDestQ(result.name);
+
+    if (readyRef.current) {
+      webViewRef.current?.injectJavaScript(
+        `window.setSearchPin(${result.latitude}, ${result.longitude}); window.setDest(${result.latitude}, ${result.longitude}); true;`,
+      );
+    } else {
+      pendingFocusRef.current = result;
+    }
+
+    router.setParams({ focusLat: undefined, focusLng: undefined, focusName: undefined });
+  }, [focusLat, focusLng, focusName, router]);
 
   // ── Saved places ─────────────────────────────────────────────────────────
 
@@ -548,6 +582,13 @@ export default function MapView() {
         if (prefetchedRef.current) {
           pushObstacles(prefetchedRef.current, false);
           prefetchedRef.current = null;
+        }
+        if (pendingFocusRef.current) {
+          const f = pendingFocusRef.current;
+          pendingFocusRef.current = null;
+          webViewRef.current?.injectJavaScript(
+            `window.setSearchPin(${f.latitude}, ${f.longitude}); window.setDest(${f.latitude}, ${f.longitude}); true;`,
+          );
         }
       } else if (msg.type === 'BOUNDS_CHANGE') {
         const bbox = { north: msg.north, south: msg.south, east: msg.east, west: msg.west };

@@ -139,6 +139,20 @@ export default function ProfileScreen() {
                 {!!place.address && <Text style={s.placeAddress} numberOfLines={1}>{place.address}</Text>}
               </View>
               <TouchableOpacity
+                testID={`open-on-map-${place.id}`}
+                onPress={() => router.push({
+                  pathname: '/tabs',
+                  params: {
+                    focusLat: String(place.latitude),
+                    focusLng: String(place.longitude),
+                    focusName: place.address || place.label,
+                  },
+                })}
+                style={s.deleteBtn}
+              >
+                <Ionicons name="map-outline" size={16} color={COLORS.green700} />
+              </TouchableOpacity>
+              <TouchableOpacity
                 testID={`delete-place-${place.id}`}
                 onPress={() => handleDeletePlace(place.id)}
                 disabled={deletingId === place.id}

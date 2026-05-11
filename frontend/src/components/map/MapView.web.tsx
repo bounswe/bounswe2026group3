@@ -25,7 +25,7 @@ import SavePlaceModal from './SavePlaceModal';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
 import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -269,6 +269,30 @@ export default function MapView() {
   const [destFocused, setDestFocused] = useState(false);
 
   const { location: currentLocation } = useLocation();
+
+  // Deep-link focus (e.g. tapping a saved place on the profile screen).
+  const params = useLocalSearchParams<{ focusLat?: string; focusLng?: string; focusName?: string }>();
+  const focusLat = typeof params.focusLat === 'string' ? params.focusLat : null;
+  const focusLng = typeof params.focusLng === 'string' ? params.focusLng : null;
+  const focusName = typeof params.focusName === 'string' ? params.focusName : null;
+
+  useEffect(() => {
+    if (!focusLat || !focusLng || !focusName) return;
+    const lat = parseFloat(focusLat);
+    const lng = parseFloat(focusLng);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+    const result: SearchResult = { id: `focus:${lat},${lng}`, name: focusName, latitude: lat, longitude: lng };
+    setQuery(result.name);
+    setSuggestions([]);
+    setSelectedLocation(result);
+    setSearchFocused(false);
+    setSearchPinLL([result.latitude, result.longitude]);
+    setDest({ lat: result.latitude, lng: result.longitude, label: result.name });
+    setDestQ(result.name);
+
+    router.setParams({ focusLat: undefined, focusLng: undefined, focusName: undefined });
+  }, [focusLat, focusLng, focusName, router]);
 
   // ── Saved places ─────────────────────────────────────────────────────────
 
