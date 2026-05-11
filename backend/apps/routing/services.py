@@ -200,8 +200,9 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     chosen_waypoints = baseline_waypoints
     on_chosen = on_baseline
 
-    # 2) Try avoidance only if the baseline actually hits obstacles.
-    if on_baseline:
+    # 2) Try avoidance whenever verified obstacles exist — Valhalla re-routes
+    #    around obstacle areas even if none were detected on the baseline polyline.
+    if verified_obstacles:
         try:
             alt_waypoints, alt_distance, alt_duration = _call_valhalla(
                 origin, destination, exclude_locations=verified_obstacles,
