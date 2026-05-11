@@ -11,7 +11,7 @@ OBSTACLE_PROXIMITY_RADIUS_M = 40.0
 ROUTE_OBSTACLE_PADDING_DEG = 0.009
 # Obstacles within this radius of origin/destination are skipped from exclusion:
 # Valhalla fails if an endpoint falls inside an exclude_polygon.
-ENDPOINT_SKIP_RADIUS_M = 80.0
+ENDPOINT_SKIP_RADIUS_M = 25.0
 UNVERIFIED_WARNING_RADIUS_M = 80.0
 VALHALLA_BASE = 'https://valhalla1.openstreetmap.de'
 WALKING_SPEED_MS = 4000 / 3600  # 4 km/h in m/s
@@ -123,9 +123,10 @@ def _call_valhalla(origin, destination, exclude_locations=None):
     """
     Call Valhalla pedestrian routing API.
     exclude_locations: list of obstacle dicts with 'latitude'/'longitude'.
-    Each obstacle is passed as a small exclude_polygon (~50 m square) so
-    Valhalla avoids the road *segment* around the obstacle, not just the
-    nearest intersection (which exclude_locations snaps to).
+    Each obstacle is passed as both an exclude_polygon (~11 m square) and
+    an exclude_location point.  The polygon catches mid-segment obstacles;
+    the point exclusion is a fallback for Valhalla instances that may not
+    fully honour exclude_polygons.
     Returns (waypoints, distance_m, duration_s).
     """
     body = {
@@ -138,7 +139,7 @@ def _call_valhalla(origin, destination, exclude_locations=None):
     }
 
     if exclude_locations:
-        r = 0.00045  # ~50 m at mid-latitudes
+        r = 0.0001  # ~11 m at mid-latitudes — blocks the path without sealing off parallel streets
         body['exclude_polygons'] = [
             [
                 [float(loc['longitude']) - r, float(loc['latitude']) - r],
@@ -147,6 +148,12 @@ def _call_valhalla(origin, destination, exclude_locations=None):
                 [float(loc['longitude']) - r, float(loc['latitude']) + r],
                 [float(loc['longitude']) - r, float(loc['latitude']) - r],
             ]
+            for loc in exclude_locations
+        ]
+        # Also pass as point exclusions — more widely supported by Valhalla
+        # instances that may not honour exclude_polygons.
+        body['exclude_locations'] = [
+            {'lon': float(loc['longitude']), 'lat': float(loc['latitude'])}
             for loc in exclude_locations
         ]
 
