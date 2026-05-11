@@ -11,13 +11,14 @@ interface ConfirmResolutionButtonProps {
   userUpvoted: boolean;
   userConfirmed: boolean;
   confirmationCount: number;
+  confirmationThreshold: number;
   currentUserId: string;
   onResolved: (newStatus: string, confirmationCount: number) => void;
 }
 
 export default function ConfirmResolutionButton({
   reportId, status, reporterId, userUpvoted, userConfirmed, confirmationCount,
-  currentUserId, onResolved,
+  confirmationThreshold, currentUserId, onResolved,
 }: ConfirmResolutionButtonProps) {
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +34,7 @@ export default function ConfirmResolutionButton({
       <View testID="confirm-resolution-recorded" style={s.recorded}>
         <Ionicons name="checkmark-circle" size={18} color={COLORS.green700} />
         <Text style={s.recordedText}>
-          Confirmation recorded — waiting for {confirmationCount === 1 ? 'others' : 'more citizens'} to confirm.
+          Confirmation recorded — {confirmationCount} / {confirmationThreshold} confirmed.
         </Text>
       </View>
     );
@@ -65,7 +66,10 @@ export default function ConfirmResolutionButton({
     >
       {loading
         ? <ActivityIndicator size="small" color={COLORS.white} />
-        : <Text style={s.text}>Confirm Resolution</Text>}
+        : <>
+            <Text style={s.text}>Confirm Resolution</Text>
+            <Text style={s.progressText}>{confirmationCount} / {confirmationThreshold} confirmed</Text>
+          </>}
     </TouchableOpacity>
   );
 }
@@ -79,6 +83,7 @@ const s = StyleSheet.create({
     marginTop: 12,
   },
   text: { color: COLORS.white, fontWeight: '600', fontSize: 14 },
+  progressText: { color: COLORS.white, fontSize: 12, opacity: 0.85, marginTop: 2 },
   recorded: {
     flexDirection: 'row',
     alignItems: 'center',

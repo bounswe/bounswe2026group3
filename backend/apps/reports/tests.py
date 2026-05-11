@@ -303,6 +303,7 @@ class ReportUpvoteViewTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         self.assertEqual(data["upvoteCount"], 1)
+        self.assertIn("upvoteThreshold", data)
         self.assertEqual(data["status"], ReportStatus.UNVERIFIED)
         self.assertFalse(data["autoVerified"])
 
@@ -573,8 +574,10 @@ class ConfirmResolutionViewTest(TestCase):
         data = response.json()
         self.assertIn("reportId", data)
         self.assertIn("confirmationCount", data)
+        self.assertIn("confirmationThreshold", data)
         self.assertIn("status", data)
         self.assertEqual(data["confirmationCount"], 1)
+        self.assertEqual(data["confirmationThreshold"], 3)
 
     def test_upvoter_can_confirm(self):
         voter = self._upvoter(1)
