@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Image, ScrollView, StyleSheet,
+  ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { getMe, isLoggedIn } from '../../src/services/auth';
 import InteractionBar from '../../src/components/reports/InteractionBar';
 import ConfirmResolutionButton from '../../src/components/reports/ConfirmResolutionButton';
 import DiscussionSection from '../../src/components/reports/DiscussionSection';
+import { getStandardByCode, type AccessibilityStandard } from '../../src/constants/accessibilityStandards';
 
 function formatDate(iso: string): string {
   if (!iso) return '';
@@ -108,6 +109,71 @@ const CATEGORY_COLOR: Record<string, string> = {
   OTHER: COLORS.gray500,
 };
 
+function ViolationDetailModal({
+  standard, onClose,
+}: { standard: AccessibilityStandard | null; onClose: () => void }) {
+  return (
+    <Modal
+      visible={standard !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable style={s.modalBackdrop} onPress={onClose}>
+        <Pressable style={s.modalCard} onPress={(e) => e.stopPropagation()}>
+          {standard && (
+            <>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>{standard.label}</Text>
+                <TouchableOpacity onPress={onClose} hitSlop={8}>
+                  <Ionicons name="close" size={20} color={COLORS.gray500} />
+                </TouchableOpacity>
+              </View>
+              <Text style={s.modalSectionLabel}>Requirement</Text>
+              <Text style={s.modalBody}>{standard.requirement}</Text>
+              <Text style={s.modalSectionLabel}>Why it matters</Text>
+              <Text style={s.modalBody}>{standard.why}</Text>
+              <Text style={s.modalRef}>Source: {standard.pdfRef}</Text>
+            </>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function ViolationsSection({ codes }: { codes: string[] }) {
+  const [open, setOpen] = useState<AccessibilityStandard | null>(null);
+  if (!codes.length) return null;
+  const entries = codes
+    .map((code) => getStandardByCode(code))
+    .filter((s): s is AccessibilityStandard => s !== null);
+  if (!entries.length) return null;
+  return (
+    <View style={s.violationsCard}>
+      <View style={s.violationsHeading}>
+        <Ionicons name="alert-circle-outline" size={16} color={COLORS.gray700} />
+        <Text style={s.violationsHeadingText}>Accessibility issues</Text>
+      </View>
+      <View style={s.violationsWrap}>
+        {entries.map((std) => (
+          <TouchableOpacity
+            key={std.code}
+            style={s.violationChip}
+            onPress={() => setOpen(std)}
+            activeOpacity={0.7}
+          >
+            <View style={s.violationDot} />
+            <Text style={s.violationChipText}>{std.label}</Text>
+            <Ionicons name="information-circle-outline" size={12} color={COLORS.gray500} />
+          </TouchableOpacity>
+        ))}
+      </View>
+      <ViolationDetailModal standard={open} onClose={() => setOpen(null)} />
+    </View>
+  );
+}
+
 export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -201,6 +267,8 @@ export default function ReportDetailScreen() {
         {detail.description ? (
           <Text style={s.description}>{detail.description}</Text>
         ) : null}
+
+        <ViolationsSection codes={detail.violations} />
 
         {detail.photos.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.photoRow}>
@@ -357,4 +425,33 @@ const s = StyleSheet.create({
   historyReason: { fontSize: 12, color: COLORS.gray600, marginTop: 2 },
   historyPhoto: { width: '100%', height: 140, borderRadius: 8, marginTop: 8 },
   historyTime: { fontSize: 11, color: COLORS.gray400, marginTop: 4 },
+
+  // Accessibility issues section (inside main card, between description and photos)
+  violationsCard:        { marginBottom: 12 },
+  violationsHeading:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  violationsHeadingText: { fontSize: 13, fontWeight: '700', color: COLORS.gray700 },
+  violationsWrap:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  violationChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.gray200,
+  },
+  violationDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.orange500 },
+  violationChipText:{ fontSize: 12, fontWeight: '600', color: COLORS.gray700 },
+
+  // Modal — standard detail
+  modalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(17,24,39,0.45)',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%', maxWidth: 420,
+    backgroundColor: COLORS.white, borderRadius: 14,
+    padding: 18, gap: 8,
+  },
+  modalHeader:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitle:        { fontSize: 16, fontWeight: '700', color: COLORS.gray900, flex: 1 },
+  modalSectionLabel: { fontSize: 11, fontWeight: '700', color: COLORS.gray500, letterSpacing: 0.5, marginTop: 6, textTransform: 'uppercase' },
+  modalBody:         { fontSize: 13, lineHeight: 19, color: COLORS.gray700 },
+  modalRef:          { fontSize: 11, color: COLORS.gray400, marginTop: 8 },
 });

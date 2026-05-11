@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from .accessibility_standards import CODES_BY_CATEGORY
 from .models import Comment, ObstacleCategory, ReportContext
 
 
@@ -22,6 +23,39 @@ class ReportSerializer(serializers.Serializer):
         min_length=1,
         max_length=3,
     )
+    violations = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+    )
+
+    def validate(self, attrs):
+        violations = attrs.get("violations") or []
+        if not violations:
+            return attrs
+
+        category = attrs.get("category")
+        allowed = CODES_BY_CATEGORY.get(category, set())
+        if not allowed:
+            raise serializers.ValidationError({
+                "violations": (
+                    "This category has no accessibility-standard entries; "
+                    "violations must be empty."
+                ),
+            })
+
+        unknown = [code for code in violations if code not in allowed]
+        if unknown:
+            raise serializers.ValidationError({
+                "violations": (
+                    f"Unknown or wrong-category violation codes: {sorted(set(unknown))}."
+                ),
+            })
+
+        # De-duplicate while preserving order.
+        seen = set()
+        attrs["violations"] = [c for c in violations if not (c in seen or seen.add(c))]
+        return attrs
 
 class ReportResponseSerializer(serializers.Serializer):
     reportId = serializers.UUIDField(source="id")

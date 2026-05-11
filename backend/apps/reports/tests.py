@@ -198,6 +198,61 @@ class ReportSerializerTest(TestCase):
         s = ReportSerializer(data=payload)
         self.assertTrue(s.is_valid(), s.errors)
 
+    # --- Accessibility violations ---
+
+    def test_violations_omitted_is_valid(self):
+        # Existing clients that don't know about violations still validate.
+        from apps.reports.serializers import ReportSerializer
+        payload = self._valid_payload()
+        s = ReportSerializer(data=payload)
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(s.validated_data["violations"], [])
+
+    def test_violations_empty_list_is_valid(self):
+        from apps.reports.serializers import ReportSerializer
+        s = ReportSerializer(data=self._valid_payload(violations=[]))
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(s.validated_data["violations"], [])
+
+    def test_violations_valid_codes_for_category(self):
+        from apps.reports.serializers import ReportSerializer
+        s = ReportSerializer(data=self._valid_payload(
+            violations=["RAMP_TOO_STEEP", "RAMP_NO_HANDRAIL"],
+        ))
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertEqual(
+            s.validated_data["violations"],
+            ["RAMP_TOO_STEEP", "RAMP_NO_HANDRAIL"],
+        )
+
+    def test_violations_unknown_code_rejected(self):
+        from apps.reports.serializers import ReportSerializer
+        s = ReportSerializer(data=self._valid_payload(
+            violations=["RAMP_TOO_STEEP", "TOTALLY_FAKE_CODE"],
+        ))
+        self.assertFalse(s.is_valid())
+        self.assertIn("violations", s.errors)
+
+    def test_violations_wrong_category_rejected(self):
+        # ELEVATOR_OUT_OF_ORDER belongs to BROKEN_ELEVATOR, not BROKEN_RAMP.
+        from apps.reports.serializers import ReportSerializer
+        s = ReportSerializer(data=self._valid_payload(
+            category="BROKEN_RAMP",
+            violations=["ELEVATOR_OUT_OF_ORDER"],
+        ))
+        self.assertFalse(s.is_valid())
+        self.assertIn("violations", s.errors)
+
+    def test_violations_rejected_for_other_category(self):
+        # OTHER has no entries in the catalog — any violation is invalid.
+        from apps.reports.serializers import ReportSerializer
+        s = ReportSerializer(data=self._valid_payload(
+            category="OTHER",
+            violations=["RAMP_TOO_STEEP"],
+        ))
+        self.assertFalse(s.is_valid())
+        self.assertIn("violations", s.errors)
+
 
 # ---------------------------------------------------------------------------
 # View: POST /api/reports/
