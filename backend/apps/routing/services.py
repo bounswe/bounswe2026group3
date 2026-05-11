@@ -9,6 +9,9 @@ OBSTACLE_PROXIMITY_RADIUS_M = 40.0
 # Padding added around the origin-destination bounding box when pre-filtering
 # obstacles for Valhalla.  ~1 km at Istanbul's latitude (1° ≈ 111 km).
 ROUTE_OBSTACLE_PADDING_DEG = 0.009
+# Obstacles within this radius of origin/destination are skipped from exclusion:
+# Valhalla fails if an endpoint falls inside an exclude_polygon.
+ENDPOINT_SKIP_RADIUS_M = 80.0
 UNVERIFIED_WARNING_RADIUS_M = 80.0
 VALHALLA_BASE = 'https://valhalla1.openstreetmap.de'
 WALKING_SPEED_MS = 4000 / 3600  # 4 km/h in m/s
@@ -229,13 +232,19 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     on_chosen = on_baseline
 
     # 2) If any verified obstacles exist in the route area, always call Valhalla
-    #    with them as exclusions and use that as the chosen route. The old
-    #    on_baseline gate caused avoidance to be silently discarded whenever
-    #    the obstacle wasn't within 40 m of a baseline waypoint.
-    if verified_obstacles:
+    #    with them as exclusions and use that as the chosen route. Obstacles
+    #    too close to origin/destination are skipped: if an endpoint falls
+    #    inside an exclude_polygon Valhalla returns a 400 and we'd fall back
+    #    to the baseline (which goes through the obstacle).
+    avoidable = [
+        obs for obs in verified_obstacles
+        if haversine(origin[0], origin[1], float(obs['latitude']), float(obs['longitude'])) > ENDPOINT_SKIP_RADIUS_M
+        and haversine(destination[0], destination[1], float(obs['latitude']), float(obs['longitude'])) > ENDPOINT_SKIP_RADIUS_M
+    ]
+    if avoidable:
         try:
             alt_waypoints, alt_distance, alt_duration = _call_valhalla(
-                origin, destination, exclude_locations=verified_obstacles,
+                origin, destination, exclude_locations=avoidable,
             )
             on_alternative = _obstacles_on_route(
                 alt_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
