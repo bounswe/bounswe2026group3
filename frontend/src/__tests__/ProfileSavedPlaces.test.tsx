@@ -102,3 +102,55 @@ it('keeps the item if deletion fails', async () => {
   expect(mockDeleteSavedPlace).toHaveBeenCalledWith('p1');
   expect(getByTestId('saved-place-p1')).toBeTruthy();
 });
+
+it('opens the map with the address as focusName when the map button is pressed', async () => {
+  mockGetSavedPlaces.mockResolvedValue(MOCK_PLACES);
+  const { getByTestId } = render(<ProfileScreen />);
+
+  await waitFor(() => expect(getByTestId('open-on-map-p1')).toBeTruthy());
+
+  await act(async () => {
+    fireEvent.press(getByTestId('open-on-map-p1'));
+  });
+
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/tabs',
+    params: { focusLat: '41', focusLng: '29', focusName: '123 Main St' },
+  });
+  expect(mockDeleteSavedPlace).not.toHaveBeenCalled();
+});
+
+it('falls back to the label as focusName when the saved place has no address', async () => {
+  mockGetSavedPlaces.mockResolvedValue(MOCK_PLACES);
+  const { getByTestId } = render(<ProfileScreen />);
+
+  await waitFor(() => expect(getByTestId('open-on-map-p2')).toBeTruthy());
+
+  await act(async () => {
+    fireEvent.press(getByTestId('open-on-map-p2'));
+  });
+
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/tabs',
+    params: { focusLat: '41.1', focusLng: '29.1', focusName: 'Work' },
+  });
+});
+
+it('pressing delete does not also trigger map navigation', async () => {
+  mockGetSavedPlaces.mockResolvedValue(MOCK_PLACES);
+  const { getByTestId } = render(<ProfileScreen />);
+
+  await waitFor(() => expect(getByTestId('delete-place-p1')).toBeTruthy());
+
+  await act(async () => {
+    fireEvent.press(getByTestId('delete-place-p1'));
+  });
+
+  expect(mockDeleteSavedPlace).toHaveBeenCalledWith('p1');
+  // The map-focus push must not fire just because the row was rendered or
+  // the delete button was pressed.
+  const mapPush = mockRouter.push.mock.calls.find(
+    (call) => typeof call[0] === 'object' && (call[0] as any)?.pathname === '/tabs',
+  );
+  expect(mapPush).toBeUndefined();
+});
