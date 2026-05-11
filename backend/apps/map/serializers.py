@@ -1,6 +1,8 @@
+from django.conf import settings
 from rest_framework import serializers
 
 from apps.reports.models import InteractionType
+from apps.reports.services import _upvote_threshold_for
 
 
 class LocationSerializer(serializers.Serializer):
@@ -57,8 +59,10 @@ class ObstacleDetailSerializer(serializers.Serializer):
     status = serializers.CharField()
     description = serializers.CharField()
     upvoteCount = serializers.SerializerMethodField()
+    upvoteThreshold = serializers.SerializerMethodField()
     flagCount = serializers.SerializerMethodField()
     confirmationCount = serializers.SerializerMethodField()
+    confirmationThreshold = serializers.SerializerMethodField()
     userUpvoted = serializers.SerializerMethodField()
     userFlagged = serializers.SerializerMethodField()
     userConfirmed = serializers.SerializerMethodField()
@@ -72,11 +76,17 @@ class ObstacleDetailSerializer(serializers.Serializer):
     def get_upvoteCount(self, obj):
         return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.UPVOTE)
 
+    def get_upvoteThreshold(self, obj):
+        return _upvote_threshold_for(obj.reporter)
+
     def get_flagCount(self, obj):
         return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.FLAG)
 
     def get_confirmationCount(self, obj):
         return sum(1 for i in obj.interactions.all() if i.interaction_type == InteractionType.CONFIRM_RESOLUTION)
+
+    def get_confirmationThreshold(self, obj):
+        return settings.RESOLUTION_CONFIRMATION_THRESHOLD
 
     def _user_has_interaction(self, obj, interaction_type):
         request = self.context.get("request")

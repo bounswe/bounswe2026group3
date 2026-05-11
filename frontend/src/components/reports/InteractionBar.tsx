@@ -16,7 +16,9 @@ import { postUpvote, postFlag } from '../../api/interactions';
 export interface InteractionBarProps {
   reportId: string;
   reporterId: string;
+  status: string;
   upvoteCount: number;
+  upvoteThreshold: number;
   flagCount: number;
   userUpvoted: boolean;
   userFlagged: boolean;
@@ -29,8 +31,8 @@ const VALID_STATUSES = new Set([
 ]);
 
 export default function InteractionBar({
-  reportId, reporterId, upvoteCount, flagCount,
-  userUpvoted, userFlagged, currentUserId, onUpdate,
+  reportId, reporterId, status, upvoteCount, upvoteThreshold,
+  flagCount, userUpvoted, userFlagged, currentUserId, onUpdate,
 }: InteractionBarProps) {
   const [upvoting, setUpvoting] = useState(false);
   const [flagging, setFlagging] = useState(false);
@@ -150,7 +152,7 @@ export default function InteractionBar({
           color={upvoting ? COLORS.gray400 : userUpvoted ? COLORS.green600 : COLORS.gray600}
         />
         <Text style={[s.count, !upvoting && userUpvoted && s.activeCount]} testID="upvote-count">
-          {upvoteCount}
+          {status === 'UNVERIFIED' ? `${upvoteCount} / ${upvoteThreshold}` : upvoteCount}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity

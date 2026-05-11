@@ -192,6 +192,7 @@ def toggle_upvote(user, report_id) -> dict:
     return {
         'reportId': report.id,
         'upvoteCount': upvote_count,
+        'upvoteThreshold': _upvote_threshold_for(report.reporter),
         'userUpvoted': user_upvoted,
         'status': report.status,
         'autoVerified': auto_verified,
@@ -332,5 +333,6 @@ def register_resolution_confirmation(user, report_id) -> dict:
     return {
         'reportId': report.id,
         'confirmationCount': confirmation_count,
+        'confirmationThreshold': settings.RESOLUTION_CONFIRMATION_THRESHOLD,
         'status': report.status,
     }

@@ -126,7 +126,7 @@ export default function ApplyAuthorityScreen() {
             multiline
             numberOfLines={6}
             textAlignVertical="top"
-            maxLength={MAX_REASON + 1 /* allow typing one over to surface error */}
+            maxLength={MAX_REASON}
           />
           {!!errors.reason && <Text style={s.fieldError}>{errors.reason}</Text>}
 

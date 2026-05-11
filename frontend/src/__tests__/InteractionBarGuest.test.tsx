@@ -7,7 +7,9 @@ jest.mock('../api/interactions');
 const baseProps = {
   reportId: 'r1',
   reporterId: 'someone-else',
+  status: 'VERIFIED',
   upvoteCount: 3,
+  upvoteThreshold: 5,
   flagCount: 1,
   userUpvoted: false,
   userFlagged: false,

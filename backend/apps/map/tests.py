@@ -235,7 +235,8 @@ class ObstacleDetailViewTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         for field in ("reportId", "location", "category", "context", "status", "description",
-                      "upvoteCount", "flagCount", "photos", "statusHistory", "createdAt"):
+                      "upvoteCount", "upvoteThreshold", "flagCount", "confirmationCount",
+                      "confirmationThreshold", "photos", "statusHistory", "createdAt"):
             self.assertIn(field, data)
 
     def test_upvote_and_flag_count(self):
