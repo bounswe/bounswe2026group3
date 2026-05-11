@@ -5,7 +5,12 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.routing.serializers import RouteResponseSerializer
-from apps.routing.services import WALKING_SPEED_MS
+from apps.routing.services import (
+    OBSTACLE_PROXIMITY_RADIUS_M,
+    WALKING_SPEED_MS,
+    _obstacles_on_route,
+    _point_to_segment_distance_m,
+)
 from apps.users.models import MobilityProfile, User
 
 
@@ -402,6 +407,41 @@ class RouteResponseSerializerTest(TestCase):
     def test_is_accessible_false_when_obstacles_on_route(self):
         s = RouteResponseSerializer(self._make_data(isAccessible=False))
         self.assertFalse(s.data['isAccessible'])
+
+
+class ObstacleOnRouteGeometryTest(TestCase):
+    """Direct unit tests for _obstacles_on_route's point-to-segment proximity check."""
+
+    def test_point_to_segment_perpendicular_distance(self):
+        # Segment ~177m long between MOCK_WAYPOINTS[4] and [5]. Midpoint sits between
+        # the two waypoints at ~88m from each — outside a 40m waypoint-only check,
+        # but 0m from the segment itself.
+        a_lat, a_lng = 41.0850, 29.0490
+        b_lat, b_lng = 41.0855, 29.0470
+        mid_lat = (a_lat + b_lat) / 2
+        mid_lng = (a_lng + b_lng) / 2
+        d = _point_to_segment_distance_m(mid_lat, mid_lng, a_lat, a_lng, b_lat, b_lng)
+        self.assertLess(d, 1.0)  # essentially on the segment
+
+    def test_obstacle_between_waypoints_is_detected(self):
+        # Obstacle sits near the midpoint of segment 4↔5 of MOCK_WAYPOINTS, far
+        # enough from both endpoints that the old waypoint-only check missed it.
+        obstacles = [
+            {'id': 1, 'latitude': 41.08525, 'longitude': 29.0480,
+             'title': 'Mid-segment', 'category': 'BLOCKED_PATH'},
+        ]
+        on_route = _obstacles_on_route(MOCK_WAYPOINTS, obstacles, OBSTACLE_PROXIMITY_RADIUS_M)
+        self.assertEqual(len(on_route), 1)
+        self.assertEqual(on_route[0]['id'], 1)
+
+    def test_obstacle_far_from_segment_is_not_detected(self):
+        # Same midpoint but pushed far enough perpendicular to be > 40m off the segment.
+        obstacles = [
+            {'id': 2, 'latitude': 41.0860, 'longitude': 29.0480,
+             'title': 'Off-segment', 'category': 'BLOCKED_PATH'},
+        ]
+        on_route = _obstacles_on_route(MOCK_WAYPOINTS, obstacles, OBSTACLE_PROXIMITY_RADIUS_M)
+        self.assertEqual(on_route, [])
 
 
 class WalkingSpeedFallbackTest(TestCase):

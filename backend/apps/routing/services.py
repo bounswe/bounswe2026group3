@@ -19,6 +19,30 @@ def haversine(lat1, lng1, lat2, lng2):
     return EARTH_RADIUS_M * 2 * math.asin(math.sqrt(a))
 
 
+_M_PER_DEG = math.pi * EARTH_RADIUS_M / 180.0
+
+
+def _point_to_segment_distance_m(p_lat, p_lng, a_lat, a_lng, b_lat, b_lng):
+    """Distance in meters from point P to segment AB using a local
+    equirectangular projection around A. Accurate for short segments (<~few km)."""
+    cos_lat = math.cos(math.radians(a_lat))
+    dx_p = (p_lng - a_lng) * cos_lat
+    dy_p = (p_lat - a_lat)
+    dx_b = (b_lng - a_lng) * cos_lat
+    dy_b = (b_lat - a_lat)
+
+    seg_sq = dx_b * dx_b + dy_b * dy_b
+    if seg_sq == 0:
+        # Zero-length segment — fall back to point-to-point.
+        return math.hypot(dx_p, dy_p) * _M_PER_DEG
+
+    t = (dx_p * dx_b + dy_p * dy_b) / seg_sq
+    t = max(0.0, min(1.0, t))
+    cx = t * dx_b
+    cy = t * dy_b
+    return math.hypot(dx_p - cx, dy_p - cy) * _M_PER_DEG
+
+
 def _decode_polyline(encoded, precision=6):
     """Decode a Valhalla encoded polyline into a list of [lat, lng] pairs."""
     inv = 10 ** -precision
@@ -59,16 +83,29 @@ def _get_unverified_obstacles():
 
 
 def _obstacles_on_route(waypoints, obstacles, radius_m):
-    """Return obstacles within radius_m of any waypoint. Each obstacle returned once."""
+    """Return obstacles within radius_m of the route polyline (any segment between
+    consecutive waypoints). Each obstacle returned once."""
+    if not waypoints:
+        return []
     nearby = []
     seen = set()
     for obs in obstacles:
+        if obs['id'] in seen:
+            continue
         obs_lat, obs_lng = float(obs['latitude']), float(obs['longitude'])
-        for wp in waypoints:
+        if len(waypoints) == 1:
+            wp = waypoints[0]
             if haversine(wp[0], wp[1], obs_lat, obs_lng) <= radius_m:
-                if obs['id'] not in seen:
-                    nearby.append(obs)
-                    seen.add(obs['id'])
+                nearby.append(obs)
+                seen.add(obs['id'])
+            continue
+        for i in range(len(waypoints) - 1):
+            a, b = waypoints[i], waypoints[i + 1]
+            if _point_to_segment_distance_m(
+                obs_lat, obs_lng, a[0], a[1], b[0], b[1]
+            ) <= radius_m:
+                nearby.append(obs)
+                seen.add(obs['id'])
                 break
     return nearby
 
@@ -131,14 +168,19 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     """
     Pedestrian route using Valhalla, computed in two passes:
       1. baseline route with no exclusions → obstacles that lie on it (on_baseline)
-      2. if on_baseline is non-empty, avoidance route excluding only those obstacles
-         → obstacles still on it (on_avoidance)
-    avoidedObstaclesCount = len(on_baseline) - len(on_avoidance), so it only counts
-    obstacles relevant to *this* trip.
+      2. if on_baseline is non-empty, avoidance route with ALL verified obstacles
+         passed to Valhalla as exclude_locations (not just on_baseline) so the
+         alternative doesn't end up routing through a different verified obstacle
+         that simply wasn't on the original baseline.
 
-    Returns baselineRoute always, and alternativeRoute only when the second pass
-    actually improves on the baseline (fewer obstacles on the path).
-    Warnings and isAccessible are derived from the chosen route.
+    avoidedObstaclesCount = |on_baseline_ids - on_chosen_ids|  (set diff). This
+    counts only the baseline-blocking obstacles we actually got rid of, and isn't
+    confused by new obstacles the alternative happens to pass near.
+
+    Returns baselineRoute always, and alternativeRoute only when it strictly
+    improves on the baseline (avoidedObstaclesCount > 0).
+    Warnings and isAccessible are derived from all verified obstacles on the
+    chosen route.
     """
     origin = [origin_lat, origin_lng]
     destination = [dest_lat, dest_lng]
@@ -151,6 +193,7 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     on_baseline = _obstacles_on_route(
         baseline_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
     )
+    on_baseline_ids = {obs['id'] for obs in on_baseline}
 
     baseline_route = _route_payload(baseline_waypoints, baseline_distance, baseline_duration)
     alternative_route = None
@@ -161,21 +204,24 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     if on_baseline:
         try:
             alt_waypoints, alt_distance, alt_duration = _call_valhalla(
-                origin, destination, exclude_locations=on_baseline,
+                origin, destination, exclude_locations=verified_obstacles,
             )
-            on_avoidance = _obstacles_on_route(
+            on_alternative = _obstacles_on_route(
                 alt_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
             )
-            # Only surface the alternative if it genuinely improves on baseline.
-            if len(on_avoidance) < len(on_baseline):
+            on_alternative_ids = {obs['id'] for obs in on_alternative}
+            # Only surface the alternative if it removes at least one of the
+            # baseline-blocking obstacles.
+            if on_baseline_ids - on_alternative_ids:
                 alternative_route = _route_payload(alt_waypoints, alt_distance, alt_duration)
                 chosen_waypoints = alt_waypoints
-                on_chosen = on_avoidance
+                on_chosen = on_alternative
         except ValueError:
             # Avoidance failed — stick with baseline.
             pass
 
-    avoided_count = len(on_baseline) - len(on_chosen)
+    on_chosen_ids = {obs['id'] for obs in on_chosen}
+    avoided_count = len(on_baseline_ids - on_chosen_ids)
 
     warnings = [
         f"Verified obstacle on route: {obs['title']} ({obs['category']})"

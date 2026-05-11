@@ -322,11 +322,11 @@ export default function PlanView() {
             <Polyline
               positions={route.baselineRoute.waypoints}
               pathOptions={{
-                color: COLORS.gray500,
-                weight: 4,
-                opacity: 0.7,
+                color: COLORS.orange500,
+                weight: 5,
+                opacity: 0.9,
                 lineJoin: 'round',
-                dashArray: '8 8',
+                dashArray: '10 8',
               }}
             />
           )}
@@ -366,6 +366,16 @@ export default function PlanView() {
                 <Text style={s.summaryLabel}>Avoided</Text>
               </View>
             </View>
+
+            {route.alternativeRoute && route.baselineRoute && (
+              <View style={s.baselineCompareRow}>
+                <View style={s.baselineSwatch} />
+                <Text style={s.baselineCompareLabel}>Direct (no avoidance):</Text>
+                <Text style={s.baselineCompareValue}>
+                  {formatDistance(route.baselineRoute.distanceMeters)} · {formatTime(route.baselineRoute.estimatedTimeSeconds)}
+                </Text>
+              </View>
+            )}
 
             {route.warnings && route.warnings.length > 0 && (
               <View style={s.warningsBox}>
@@ -583,6 +593,24 @@ const s = StyleSheet.create({
   },
   warningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   warningText: { flex: 1, fontSize: 12, color: COLORS.gray700, lineHeight: 17 },
+
+  baselineCompareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray100,
+  },
+  baselineSwatch: {
+    width: 22,
+    height: 3,
+    backgroundColor: COLORS.orange500,
+    borderRadius: 1.5,
+  },
+  baselineCompareLabel: { fontSize: 12, color: COLORS.gray500, fontWeight: '500' },
+  baselineCompareValue: { fontSize: 12, color: COLORS.gray800, fontWeight: '600' },
 
   // Guest prefs overlay
   overlay: {

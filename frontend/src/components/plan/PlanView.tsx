@@ -92,7 +92,7 @@ const PLAN_MAP_HTML = `<!DOCTYPE html>
     var baseline = baselineWaypointsJson ? JSON.parse(baselineWaypointsJson) : null;
     if (baseline && baseline.length > 1) {
       baselineLine = L.polyline(baseline, {
-        color: '#6B7280', weight: 4, opacity: 0.7, dashArray: '8 8'
+        color: '#F97316', weight: 5, opacity: 0.9, dashArray: '10 8'
       }).addTo(map);
     }
     routeLine = L.polyline(waypoints, { color: '#3B82F6', weight: 5, opacity: 0.9 }).addTo(map);
@@ -360,6 +360,16 @@ export default function PlanView() {
             </View>
           </View>
 
+          {route.alternativeRoute && route.baselineRoute && (
+            <View style={s.baselineCompareRow}>
+              <View style={s.baselineSwatch} />
+              <Text style={s.baselineCompareLabel}>Direct (no avoidance):</Text>
+              <Text style={s.baselineCompareValue}>
+                {formatDistance(route.baselineRoute.distanceMeters)} · {formatTime(route.baselineRoute.estimatedTimeSeconds)}
+              </Text>
+            </View>
+          )}
+
           {route.warnings && route.warnings.length > 0 && (
             <View style={s.warningsBox}>
               {route.warnings.map((w, i) => (
@@ -512,6 +522,18 @@ const s = StyleSheet.create({
   },
   warningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   warningText: { flex: 1, fontSize: 12, color: COLORS.gray700, lineHeight: 17 },
+
+  baselineCompareRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 10, paddingTop: 8,
+    borderTopWidth: 1, borderTopColor: COLORS.gray100,
+  },
+  baselineSwatch: {
+    width: 22, height: 3,
+    backgroundColor: COLORS.orange500, borderRadius: 1.5,
+  },
+  baselineCompareLabel: { fontSize: 12, color: COLORS.gray500, fontWeight: '500' },
+  baselineCompareValue: { fontSize: 12, color: COLORS.gray800, fontWeight: '600' },
 
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

@@ -603,11 +603,11 @@ export default function MapView() {
                 <Polyline
                   positions={route.baselineRoute.waypoints}
                   pathOptions={{
-                    color: COLORS.gray500,
-                    weight: 4,
-                    opacity: 0.7,
+                    color: COLORS.orange500,
+                    weight: 5,
+                    opacity: 0.9,
                     lineJoin: 'round',
-                    dashArray: '8 8',
+                    dashArray: '10 8',
                   }}
                 />
               )}
@@ -868,6 +868,15 @@ export default function MapView() {
                       <Text style={s.summaryLabel}>Avoided</Text>
                     </View>
                   </View>
+                  {route.alternativeRoute && route.baselineRoute && (
+                    <View style={s.baselineCompareRow}>
+                      <View style={s.baselineSwatch} />
+                      <Text style={s.baselineCompareLabel}>Direct (no avoidance):</Text>
+                      <Text style={s.baselineCompareValue}>
+                        {formatDistance(route.baselineRoute.distanceMeters)} · {formatTime(route.baselineRoute.estimatedTimeSeconds)}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -1146,6 +1155,23 @@ const s = StyleSheet.create({
   summaryDivider: { width: 1, height: 32, backgroundColor: COLORS.green200 },
   summaryValue: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
   summaryLabel: { fontSize: 10, color: COLORS.gray400, fontWeight: '500' },
+  baselineCompareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.green200,
+  },
+  baselineSwatch: {
+    width: 20,
+    height: 3,
+    backgroundColor: COLORS.orange500,
+    borderRadius: 1.5,
+  },
+  baselineCompareLabel: { fontSize: 11, color: COLORS.gray500, fontWeight: '500' },
+  baselineCompareValue: { fontSize: 11, color: COLORS.gray800, fontWeight: '600' },
 
   // ── Pin mode banner ──────────────────────────────────────────────────────
   pinBanner: {
