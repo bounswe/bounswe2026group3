@@ -213,6 +213,9 @@ export default function MapView() {
   const mapRef = useRef<L.Map | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boundsDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const obstacleMapRef = useRef<Map<string, Obstacle>>(new Map());
+  const fetchedBoundsRef = useRef<{ north: number; south: number; east: number; west: number } | null>(null);
+  const lastShowPassiveRef = useRef<boolean>(false);
 
   // Obstacle state
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
@@ -304,16 +307,42 @@ export default function MapView() {
 
   useEffect(() => {
     if (!currentBounds) return;
+
+    const nb = {
+      north: currentBounds.getNorth(),
+      south: currentBounds.getSouth(),
+      east: currentBounds.getEast(),
+      west: currentBounds.getWest(),
+    };
+
+    if (lastShowPassiveRef.current !== showPassive) {
+      lastShowPassiveRef.current = showPassive;
+      obstacleMapRef.current.clear();
+      fetchedBoundsRef.current = null;
+    }
+
+    const fb = fetchedBoundsRef.current;
+    if (fb &&
+        nb.north <= fb.north &&
+        nb.south >= fb.south &&
+        nb.east <= fb.east &&
+        nb.west >= fb.west) {
+      return;
+    }
+
     let cancelled = false;
-    fetchObstacles(
-      {
-        north: currentBounds.getNorth(),
-        south: currentBounds.getSouth(),
-        east: currentBounds.getEast(),
-        west: currentBounds.getWest(),
-      },
-      showPassive,
-    ).then((data) => { if (!cancelled) setObstacles(data); });
+    fetchObstacles(nb, showPassive).then((data) => {
+      if (cancelled) return;
+      for (const obs of data) obstacleMapRef.current.set(obs.id, obs);
+      const cur = fetchedBoundsRef.current;
+      fetchedBoundsRef.current = cur ? {
+        north: Math.max(cur.north, nb.north),
+        south: Math.min(cur.south, nb.south),
+        east: Math.max(cur.east, nb.east),
+        west: Math.min(cur.west, nb.west),
+      } : nb;
+      setObstacles([...obstacleMapRef.current.values()]);
+    });
     return () => { cancelled = true; };
   }, [boundsKey, showPassive]);
 
