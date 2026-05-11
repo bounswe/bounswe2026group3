@@ -61,11 +61,15 @@ const ORIGIN_ICON = makeCircleIcon(COLORS.green700);
 const DEST_ICON = makeCircleIcon(COLORS.red500);
 const SEARCH_PIN_ICON = makeCircleIcon(COLORS.red500);
 
+const _indoorIconCache: Record<string, L.DivIcon> = {};
+
 /** Indoor obstacle: circle with a small white 'i' badge — same colour coding as outdoor.
  *  When `hollow` is true (unverified), inverts to white background +
  *  dashed category-colored border + category-colored 'i'. */
-const makeIndoorCircleIcon = (color: string, hollow = false) =>
-  L.divIcon({
+const makeIndoorCircleIcon = (color: string, hollow = false) => {
+  const key = `${color}:${hollow}`;
+  if (_indoorIconCache[key]) return _indoorIconCache[key];
+  const icon = L.divIcon({
     html: `<div style="
       width:22px;height:22px;border-radius:50%;
       background:${hollow ? 'white' : color};
@@ -79,6 +83,9 @@ const makeIndoorCircleIcon = (color: string, hollow = false) =>
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
+  _indoorIconCache[key] = icon;
+  return icon;
+};
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -205,6 +212,7 @@ export default function MapView() {
   const router = useRouter();
   const mapRef = useRef<L.Map | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const boundsDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Obstacle state
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
@@ -212,7 +220,6 @@ export default function MapView() {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [boundsKey, setBoundsKey] = useState('');
   const [detailMap, setDetailMap] = useState<Record<string, ObstacleDetail | 'loading'>>({});
-  const prefetchedRef = useRef(false);
   const [showPassive, setShowPassive] = useState(false);
 
   // Search state
@@ -296,13 +303,6 @@ export default function MapView() {
   // ── Obstacle loading ─────────────────────────────────────────────────────
 
   useEffect(() => {
-    prefetchedRef.current = true;
-    fetchObstacles(DEFAULT_BBOX, false).then((data) => {
-      setObstacles((prev) => (prev.length === 0 ? data : prev));
-    });
-  }, []);
-
-  useEffect(() => {
     if (!currentBounds) return;
     let cancelled = false;
     fetchObstacles(
@@ -318,10 +318,11 @@ export default function MapView() {
   }, [boundsKey, showPassive]);
 
   const handleBoundsChange = useCallback((b: L.LatLngBounds, z: number) => {
-    setCurrentBounds(b);
     setZoom(z);
-    const key = `${b.getNorth().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getWest().toFixed(4)}`;
-    setBoundsKey(key);
+    setCurrentBounds(b);
+    const key = `${b.getNorth().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getWest().toFixed(3)}`;
+    if (boundsDebounceTimer.current) clearTimeout(boundsDebounceTimer.current);
+    boundsDebounceTimer.current = setTimeout(() => setBoundsKey(key), 400);
   }, []);
 
   const handlePinClick = useCallback(async (id: string) => {
@@ -549,7 +550,7 @@ export default function MapView() {
                       obs={obs}
                       detail={detail}
                       loading={detailLoading}
-                      onViewDetails={() => router.push(`/report/${obs.id}`)}
+                      onViewDetails={() => { mapRef.current?.closePopup(); router.push(`/report/${obs.id}`); }}
                     />
                   </Popup>
                 </Marker>
@@ -576,7 +577,7 @@ export default function MapView() {
                     obs={obs}
                     detail={detail}
                     loading={detailLoading}
-                    onViewDetails={() => router.push(`/report/${obs.id}`)}
+                    onViewDetails={() => { mapRef.current?.closePopup(); router.push(`/report/${obs.id}`); }}
                   />
                 </Popup>
               </CircleMarker>
