@@ -38,7 +38,7 @@ function StatusHistorySection({ history }: { history: StatusChange[] }) {
     <View style={s.historyCard}>
       <Text style={s.historyHeading}>Status History</Text>
       {history.map((h, i) => {
-        const { notes, photoUrl } = h.reason ? parseReason(h.reason) : { notes: '', photoUrl: null };
+        const { notes } = h.reason ? parseReason(h.reason) : { notes: '' };
         return (
           <View key={i} style={[s.historyRow, i < history.length - 1 && s.historyRowBorder]}>
             <View style={s.historyDot} />
@@ -47,9 +47,6 @@ function StatusHistorySection({ history }: { history: StatusChange[] }) {
                 {STATUS_LABEL[h.newStatus] ?? h.newStatus}
               </Text>
               {notes ? <Text style={s.historyReason}>{notes}</Text> : null}
-              {photoUrl ? (
-                <Image source={{ uri: photoUrl }} style={s.historyPhoto} resizeMode="cover" />
-              ) : null}
               <Text style={s.historyTime}>{formatDate(h.changedAt)}</Text>
             </View>
           </View>
