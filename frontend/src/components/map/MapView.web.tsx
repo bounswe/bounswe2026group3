@@ -216,10 +216,10 @@ export default function MapView() {
   const obstacleMapRef = useRef<Map<string, Obstacle>>(new Map());
   const fetchedBoundsRef = useRef<{ north: number; south: number; east: number; west: number } | null>(null);
   const lastShowPassiveRef = useRef<boolean>(false);
+  const currentBoundsRef = useRef<L.LatLngBounds | null>(null);
 
   // Obstacle state
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
-  const [currentBounds, setCurrentBounds] = useState<L.LatLngBounds | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [boundsKey, setBoundsKey] = useState('');
   const [detailMap, setDetailMap] = useState<Record<string, ObstacleDetail | 'loading'>>({});
@@ -306,13 +306,14 @@ export default function MapView() {
   // ── Obstacle loading ─────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!currentBounds) return;
+    const b = currentBoundsRef.current;
+    if (!b) return;
 
     const nb = {
-      north: currentBounds.getNorth(),
-      south: currentBounds.getSouth(),
-      east: currentBounds.getEast(),
-      west: currentBounds.getWest(),
+      north: b.getNorth(),
+      south: b.getSouth(),
+      east: b.getEast(),
+      west: b.getWest(),
     };
 
     if (lastShowPassiveRef.current !== showPassive) {
@@ -347,11 +348,13 @@ export default function MapView() {
   }, [boundsKey, showPassive]);
 
   const handleBoundsChange = useCallback((b: L.LatLngBounds, z: number) => {
-    setZoom(z);
-    setCurrentBounds(b);
+    currentBoundsRef.current = b;
     const key = `${b.getNorth().toFixed(3)},${b.getSouth().toFixed(3)},${b.getEast().toFixed(3)},${b.getWest().toFixed(3)}`;
     if (boundsDebounceTimer.current) clearTimeout(boundsDebounceTimer.current);
-    boundsDebounceTimer.current = setTimeout(() => setBoundsKey(key), 400);
+    boundsDebounceTimer.current = setTimeout(() => {
+      setZoom(z);
+      setBoundsKey(key);
+    }, 400);
   }, []);
 
   const handlePinClick = useCallback(async (id: string) => {
