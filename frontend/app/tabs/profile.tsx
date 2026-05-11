@@ -174,6 +174,24 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {user?.role !== 'INFRASTRUCTURE_AUTHORITY' && user?.role !== 'ADMINISTRATOR' && (
+        <TouchableOpacity
+          testID="apply-authority-entry"
+          style={s.applyRow}
+          onPress={() => router.push('/apply-authority')}
+          activeOpacity={0.85}
+        >
+          <View style={s.applyIcon}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.green700} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.applyTitle}>Apply to be an authority</Text>
+            <Text style={s.applySub}>Maintain reports for your municipality</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={s.logoutBtn} onPress={() => { clearTokens(); router.replace('/auth/login'); }}><Ionicons name="log-out-outline" size={18} color={COLORS.red600} /><Text style={s.logoutText}>Sign Out</Text></TouchableOpacity>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -222,6 +240,10 @@ const s = StyleSheet.create({
   deleteBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: 14, paddingVertical: 14, borderRadius: 10, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.gray200 },
   logoutText: { fontSize: 14, fontWeight: '600', color: COLORS.red600 },
+  applyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 14, marginBottom: 12, paddingVertical: 14, paddingHorizontal: 14, borderRadius: 14, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.gray200 },
+  applyIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.green100, alignItems: 'center', justifyContent: 'center' },
+  applyTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray800 },
+  applySub: { fontSize: 12, color: COLORS.gray500, marginTop: 2 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   toggleLabel: { fontSize: 14, fontWeight: '600', color: COLORS.gray800 },
   toggleSub: { fontSize: 12, color: COLORS.gray400, marginTop: 2 },
