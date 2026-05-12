@@ -4,8 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reports', '0003_report_severity_alter_report_category'),
-        ('reports', '0002_comment'),
+        ('reports', '0006_merge_0002_comment_0005_report_bbox_index'),
     ]
 
     operations = [

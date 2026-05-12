@@ -399,21 +399,21 @@ class ReportUpvoteViewTest(TestCase):
             0,
         )
 
-    def test_standard_reporter_transitions_above_threshold(self):
-        # Threshold is 5 (strict >); 5 upvotes = stays UNVERIFIED, 6th = VERIFIED.
-        for i in range(5):
+    def test_standard_reporter_transitions_at_threshold(self):
+        # Threshold is 5; 4 upvotes = stays UNVERIFIED, 5th = VERIFIED.
+        for i in range(4):
             self.client.force_authenticate(user=self._voter(i))
             self.client.post(self.url)
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, ReportStatus.UNVERIFIED)
 
-        self.client.force_authenticate(user=self._voter(5))
+        self.client.force_authenticate(user=self._voter(4))
         response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertEqual(data["upvoteCount"], 6)
+        self.assertEqual(data["upvoteCount"], 5)
         self.assertEqual(data["status"], ReportStatus.VERIFIED)
         self.assertTrue(data["autoVerified"])
 
@@ -426,47 +426,46 @@ class ReportUpvoteViewTest(TestCase):
         self.reporter.role = UserRole.TRUSTED_CONTRIBUTOR
         self.reporter.save(update_fields=['role'])
 
-        # Trusted threshold is 2 (strict >); 2 upvotes = stays, 3rd = VERIFIED.
-        for i in range(2):
-            self.client.force_authenticate(user=self._voter(i))
-            self.client.post(self.url)
+        # Trusted threshold is 2; 1 upvote = stays, 2nd = VERIFIED.
+        self.client.force_authenticate(user=self._voter(0))
+        self.client.post(self.url)
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, ReportStatus.UNVERIFIED)
 
-        self.client.force_authenticate(user=self._voter(2))
+        self.client.force_authenticate(user=self._voter(1))
         response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertEqual(data["upvoteCount"], 3)
+        self.assertEqual(data["upvoteCount"], 2)
         self.assertEqual(data["status"], ReportStatus.VERIFIED)
         self.assertTrue(data["autoVerified"])
 
     def test_standard_reporter_does_not_transition_at_trusted_threshold(self):
-        # 3 upvotes is enough for trusted, but reporter is REGISTERED_USER -> still UNVERIFIED.
-        for i in range(3):
+        # 2 upvotes is enough for trusted, but reporter is REGISTERED_USER -> still UNVERIFIED.
+        for i in range(2):
             self.client.force_authenticate(user=self._voter(i))
             response = self.client.post(self.url)
 
         data = response.json()
-        self.assertEqual(data["upvoteCount"], 3)
+        self.assertEqual(data["upvoteCount"], 2)
         self.assertEqual(data["status"], ReportStatus.UNVERIFIED)
         self.assertFalse(data["autoVerified"])
 
     def test_no_double_transition_after_verified(self):
         # Once VERIFIED, further upvotes don't re-trigger the transition or re-award score.
-        for i in range(6):
+        for i in range(5):
             self.client.force_authenticate(user=self._voter(i))
             self.client.post(self.url)
 
         self.reporter.refresh_from_db()
         self.assertEqual(self.reporter.reputation_points, 3)
 
-        self.client.force_authenticate(user=self._voter(6))
+        self.client.force_authenticate(user=self._voter(5))
         response = self.client.post(self.url)
 
-        self.assertEqual(response.json()["upvoteCount"], 7)
+        self.assertEqual(response.json()["upvoteCount"], 6)
         self.assertEqual(response.json()["status"], ReportStatus.VERIFIED)
         self.assertFalse(response.json()["autoVerified"])
         self.reporter.refresh_from_db()
