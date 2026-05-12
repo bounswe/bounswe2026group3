@@ -214,7 +214,7 @@ export default function ReportDetailScreen() {
 
   return (
     <ScrollView style={s.page} contentContainerStyle={s.content}>
-      <TouchableOpacity style={s.back} onPress={() => router.back()}>
+      <TouchableOpacity style={s.back} onPress={() => router.canGoBack() ? router.back() : router.replace('/tabs/map')}>
         <Ionicons name="arrow-back" size={18} color={COLORS.gray600} />
         <Text style={s.backText}>Map</Text>
       </TouchableOpacity>
@@ -278,8 +278,8 @@ export default function ReportDetailScreen() {
         )}
       </View>
 
-      {/* Interaction bar */}
-      <View style={s.interactionCard}>
+      {/* Interaction bar — hidden for closed reports */}
+      {detail.status !== 'CLOSED' && <View style={s.interactionCard}>
         <InteractionBar
           reportId={detail.id}
           reporterId={detail.reporterId}
@@ -292,7 +292,7 @@ export default function ReportDetailScreen() {
           currentUserId={currentUserId}
           onUpdate={(patch) => setDetail((d) => (d ? { ...d, ...patch } : d))}
         />
-      </View>
+      </View>}
 
       <ConfirmResolutionButton
         reportId={detail.id}
@@ -319,7 +319,7 @@ export default function ReportDetailScreen() {
 
       <StatusHistorySection history={detail.statusHistory} />
 
-      <DiscussionSection reportId={detail.id} currentUserId={currentUserId} />
+      <DiscussionSection reportId={detail.id} currentUserId={currentUserId} readonly={detail.status === 'CLOSED'} />
     </ScrollView>
   );
 }

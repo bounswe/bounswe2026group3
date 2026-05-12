@@ -5,7 +5,7 @@ from apps.reports.models import InteractionType, Report, ReportStatus
 
 
 def get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive=False, status=None):
-    allowed_statuses = [ReportStatus.VERIFIED, ReportStatus.UNVERIFIED]
+    allowed_statuses = [ReportStatus.VERIFIED, ReportStatus.UNVERIFIED, ReportStatus.RESOLVED_AWAITING_VALIDATION]
     if include_passive:
         allowed_statuses.append(ReportStatus.PASSIVE)
 
@@ -38,11 +38,8 @@ def get_obstacle_detail(report_id):
                     ReportStatus.VERIFIED,
                     ReportStatus.UNVERIFIED,
                     ReportStatus.PASSIVE,
-                    # Citizens need access to RESOLVED_AWAITING_VALIDATION reports so
-                    # they can confirm the repair from a status-change notification,
-                    # and authorities need access to refresh the detail screen after
-                    # they submit a resolution.
                     ReportStatus.RESOLVED_AWAITING_VALIDATION,
+                    ReportStatus.CLOSED,
                 ],
             )
         )
