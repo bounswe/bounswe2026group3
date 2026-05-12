@@ -5,7 +5,7 @@ from apps.reports.models import InteractionType, Report, ReportStatus
 
 
 def get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive=False, status=None):
-    allowed_statuses = [ReportStatus.VERIFIED, ReportStatus.UNVERIFIED]
+    allowed_statuses = [ReportStatus.VERIFIED, ReportStatus.UNVERIFIED, ReportStatus.RESOLVED_AWAITING_VALIDATION]
     if include_passive:
         allowed_statuses.append(ReportStatus.PASSIVE)
 
