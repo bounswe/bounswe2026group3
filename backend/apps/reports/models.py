@@ -70,6 +70,10 @@ class Report(models.Model):
     class Meta:
         db_table = "reports"
 
+    def save(self, *args, **kwargs):
+        self.is_indoor = self.context == ReportContext.INDOOR
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.title
 
