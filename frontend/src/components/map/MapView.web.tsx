@@ -93,6 +93,11 @@ const BOUN_CENTER: [number, number] = [41.0847, 29.0503];
 const DEFAULT_ZOOM = 16;
 const DEFAULT_BBOX = { north: 41.095, south: 41.074, east: 29.065, west: 29.035 };
 
+// Cached obstacle data is considered fresh for this long. After this window
+// the next bounds-change interaction (pan/zoom) refetches even within the
+// already-covered region, so long-idle sessions still pick up new reports.
+const OBSTACLE_CACHE_TTL_MS = 60_000;
+
 const CATEGORY_COLOR: Record<string, string> = {
   BROKEN_RAMP: COLORS.red500,
   NARROW_SIDEWALK: COLORS.orange500,
@@ -228,6 +233,7 @@ export default function MapView() {
   const obstacleMapRef = useRef<Map<string, Obstacle>>(new Map());
   const fetchedBoundsRef = useRef<{ north: number; south: number; east: number; west: number } | null>(null);
   const lastShowPassiveRef = useRef<boolean>(false);
+  const lastFetchedAtRef = useRef<number>(0);
   const currentBoundsRef = useRef<L.LatLngBounds | null>(null);
 
   // Obstacle state
@@ -353,18 +359,23 @@ export default function MapView() {
       west: b.getWest(),
     };
 
-    if (lastShowPassiveRef.current !== showPassive) {
+    const passiveChanged = lastShowPassiveRef.current !== showPassive;
+    if (passiveChanged) {
       lastShowPassiveRef.current = showPassive;
-      obstacleMapRef.current.clear();
-      fetchedBoundsRef.current = null;
+      // Don't clear the cache here — the post-fetch reconciliation below
+      // removes any stale PASSIVE entries (when toggling off) and merges in
+      // newly-returned ones (when toggling on). Keeping old markers visible
+      // until new data lands avoids a brief empty-map flash.
     }
 
     const fb = fetchedBoundsRef.current;
-    if (fb &&
-        nb.north <= fb.north &&
-        nb.south >= fb.south &&
-        nb.east <= fb.east &&
-        nb.west >= fb.west) {
+    const ttlExpired = Date.now() - lastFetchedAtRef.current > OBSTACLE_CACHE_TTL_MS;
+    const alreadyCovered = fb &&
+      nb.north <= fb.north &&
+      nb.south >= fb.south &&
+      nb.east <= fb.east &&
+      nb.west >= fb.west;
+    if (alreadyCovered && !passiveChanged && !ttlExpired) {
       return;
     }
 
@@ -393,6 +404,7 @@ export default function MapView() {
         east: Math.max(cur.east, nb.east),
         west: Math.min(cur.west, nb.west),
       } : nb;
+      lastFetchedAtRef.current = Date.now();
       setObstacles([...obstacleMapRef.current.values()]);
     });
     return () => { cancelled = true; };
@@ -400,11 +412,13 @@ export default function MapView() {
 
   // Refetch every time the map regains focus so newly-submitted reports and
   // status changes made on the detail screen (e.g. CLOSED via confirm
-  // resolution) appear/disappear without a manual reload. Invalidating the
-  // fetched-bounds union bypasses the zoom-in skip below.
+  // resolution) appear/disappear without a manual reload. Resetting the
+  // last-fetched timestamp forces the next effect run to bypass the
+  // already-covered shortcut while leaving the cached bounds and markers
+  // intact (stale-while-revalidate: old data stays visible during fetch).
   useFocusEffect(
     useCallback(() => {
-      fetchedBoundsRef.current = null;
+      lastFetchedAtRef.current = 0;
       setRefreshNonce((n) => n + 1);
     }, []),
   );

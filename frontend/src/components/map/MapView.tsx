@@ -14,7 +14,7 @@ import SavePlaceModal from './SavePlaceModal';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
 import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -399,6 +399,23 @@ export default function MapView() {
     if (!currentBoundsRef.current || !readyRef.current) return;
     loadObstacles(currentBoundsRef.current);
   }, [showPassive, loadObstacles]);
+
+  // Refetch every time the map regains focus so newly-submitted reports and
+  // status changes (e.g. CLOSED via confirm-resolution) appear/disappear
+  // without a manual reload. The WebView atomically swaps markers when the
+  // fetch resolves, so old markers stay visible during the refresh.
+  const hasFocusedOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedOnceRef.current) {
+        hasFocusedOnceRef.current = true;
+        return;
+      }
+      if (currentBoundsRef.current && readyRef.current) {
+        loadObstacles(currentBoundsRef.current);
+      }
+    }, [loadObstacles]),
+  );
 
   // ── Autocomplete for main search ─────────────────────────────────────────
 
