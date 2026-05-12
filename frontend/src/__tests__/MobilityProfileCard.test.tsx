@@ -4,7 +4,6 @@
  * without any network or timer dependencies.
  */
 
-import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MobilityProfileCard } from '../components/profile/MobilityProfileCard';
 import * as hookModule from '../hooks/useMobilityProfile';
@@ -110,89 +109,6 @@ it('renders all 7 aid type chips in edit mode', () => {
 });
 
 // ── 8 ────────────────────────────────────────────────────────────────────────
-it('hides the gradient input when both slope toggles are off', () => {
-  mockUseHook.mockReturnValue({ ...baseHook, profile: null });
-  const { getByTestId, queryByTestId } = render(<MobilityProfileCard />);
-
-  fireEvent.press(getByTestId('setup-prompt'));
-
-  expect(queryByTestId('gradient-input')).toBeNull();
-});
-
-// ── 9 ────────────────────────────────────────────────────────────────────────
-it('does NOT show the gradient input when only avoidStairs is toggled on', () => {
-  mockUseHook.mockReturnValue({ ...baseHook, profile: null });
-  const { getByTestId, queryByTestId } = render(<MobilityProfileCard />);
-
-  fireEvent.press(getByTestId('setup-prompt'));
-  fireEvent(getByTestId('avoid-stairs-switch'), 'valueChange', true);
-
-  expect(queryByTestId('gradient-input')).toBeNull();
-});
-
-// ── 10 ───────────────────────────────────────────────────────────────────────
-it('reveals the gradient input only when avoidSteepSlopes is toggled on', () => {
-  mockUseHook.mockReturnValue({ ...baseHook, profile: null });
-  const { getByTestId } = render(<MobilityProfileCard />);
-
-  fireEvent.press(getByTestId('setup-prompt'));
-  fireEvent(getByTestId('avoid-slopes-switch'), 'valueChange', true);
-
-  expect(getByTestId('gradient-input')).toBeTruthy();
-});
-
-// ── 11 ───────────────────────────────────────────────────────────────────────
-it('blocks save and shows error when gradient exceeds 25%', async () => {
-  const mockSave = jest.fn();
-  mockUseHook.mockReturnValue({ ...baseHook, profile: null, save: mockSave });
-  const { getByTestId, getByText } = render(<MobilityProfileCard />);
-
-  fireEvent.press(getByTestId('setup-prompt'));
-  fireEvent(getByTestId('avoid-slopes-switch'), 'valueChange', true);
-  fireEvent.changeText(getByTestId('gradient-input'), '30');
-  fireEvent.press(getByTestId('save-button'));
-
-  await waitFor(() => {
-    expect(getByText('Gradient cannot exceed 25%.')).toBeTruthy();
-  });
-  expect(mockSave).not.toHaveBeenCalled();
-});
-
-// ── 12 ───────────────────────────────────────────────────────────────────────
-it('blocks save and shows error when gradient is negative', async () => {
-  const mockSave = jest.fn();
-  mockUseHook.mockReturnValue({ ...baseHook, profile: null, save: mockSave });
-  const { getByTestId, getByText } = render(<MobilityProfileCard />);
-
-  fireEvent.press(getByTestId('setup-prompt'));
-  fireEvent(getByTestId('avoid-slopes-switch'), 'valueChange', true);
-  fireEvent.changeText(getByTestId('gradient-input'), '-5');
-  fireEvent.press(getByTestId('save-button'));
-
-  await waitFor(() => {
-    expect(getByText('Gradient cannot be negative.')).toBeTruthy();
-  });
-  expect(mockSave).not.toHaveBeenCalled();
-});
-
-// ── 13 ───────────────────────────────────────────────────────────────────────
-it('blocks save and shows error when avoidSteepSlopes is on but gradient is empty', async () => {
-  const mockSave = jest.fn();
-  mockUseHook.mockReturnValue({ ...baseHook, profile: null, save: mockSave });
-  const { getByTestId, getByText } = render(<MobilityProfileCard />);
-
-  fireEvent.press(getByTestId('setup-prompt'));
-  fireEvent(getByTestId('avoid-slopes-switch'), 'valueChange', true);
-  // leave gradient input empty
-  fireEvent.press(getByTestId('save-button'));
-
-  await waitFor(() => {
-    expect(getByText('Please enter a gradient value.')).toBeTruthy();
-  });
-  expect(mockSave).not.toHaveBeenCalled();
-});
-
-// ── 14 ───────────────────────────────────────────────────────────────────────
 it('calls save with the correct payload when the form is valid', async () => {
   const mockSave = jest.fn().mockResolvedValue(undefined);
   mockUseHook.mockReturnValue({ ...baseHook, profile: null, save: mockSave });
@@ -202,7 +118,6 @@ it('calls save with the correct payload when the form is valid', async () => {
   fireEvent.press(getByTestId('chip-WHEELCHAIR'));
   fireEvent(getByTestId('avoid-stairs-switch'), 'valueChange', true);
   fireEvent(getByTestId('avoid-slopes-switch'), 'valueChange', true);
-  fireEvent.changeText(getByTestId('gradient-input'), '8');
   fireEvent.press(getByTestId('save-button'));
 
   await waitFor(() => {
@@ -210,12 +125,12 @@ it('calls save with the correct payload when the form is valid', async () => {
       mobilityAid: 'WHEELCHAIR',
       avoidStairs: true,
       avoidSteepSlopes: true,
-      maxSlopeGradient: 8,
+      maxSlopeGradient: null,
     });
   });
 });
 
-// ── 15 ───────────────────────────────────────────────────────────────────────
+// ── 9 ────────────────────────────────────────────────────────────────────────
 it('shows only the selected aid type in view mode, not all chips', () => {
   mockUseHook.mockReturnValue({ ...baseHook, profile: MOCK_PROFILE }); // WHEELCHAIR selected
   const { getByText, queryByText } = render(<MobilityProfileCard />);
@@ -227,15 +142,13 @@ it('shows only the selected aid type in view mode, not all chips', () => {
   expect(queryByText('Crutches')).toBeNull();
 });
 
-// ── 16 ───────────────────────────────────────────────────────────────────────
+// ── 10 ───────────────────────────────────────────────────────────────────────
 it('shows an error banner when save throws', async () => {
   const mockSave = jest.fn().mockRejectedValue(new Error('Network error'));
   mockUseHook.mockReturnValue({ ...baseHook, profile: null, save: mockSave });
   const { getByTestId, getByText } = render(<MobilityProfileCard />);
 
   fireEvent.press(getByTestId('setup-prompt'));
-  fireEvent(getByTestId('avoid-slopes-switch'), 'valueChange', true);
-  fireEvent.changeText(getByTestId('gradient-input'), '8');
   fireEvent.press(getByTestId('save-button'));
 
   await waitFor(() => {

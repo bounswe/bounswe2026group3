@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   Switch,
-  TextInput,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
@@ -27,7 +26,6 @@ export function MobilityProfileCard() {
   const [form, setForm] = useState<MobilityProfilePayload>(BLANK);
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState('');
-  const [gradientErr, setGradientErr] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   function startEdit() {
@@ -48,36 +46,12 @@ export function MobilityProfileCard() {
   function cancelEdit() {
     setEditing(false);
     setSaveErr('');
-    setGradientErr('');
-  }
-
-  function validateGradient(): boolean {
-    if (!form.avoidSteepSlopes) return true;
-    if (form.maxSlopeGradient === null) {
-      setGradientErr('Please enter a gradient value.');
-      return false;
-    }
-    if (form.maxSlopeGradient < 0) {
-      setGradientErr('Gradient cannot be negative.');
-      return false;
-    }
-    if (form.maxSlopeGradient > 25) {
-      setGradientErr('Gradient cannot exceed 25%.');
-      return false;
-    }
-    setGradientErr('');
-    return true;
   }
 
   async function handleSave() {
-    if (!validateGradient()) return;
     setSaving(true);
     setSaveErr('');
-    const payload: MobilityProfilePayload = {
-      ...form,
-      // Clear gradient when avoidSteepSlopes is off
-      maxSlopeGradient: form.avoidSteepSlopes ? form.maxSlopeGradient : null,
-    };
+    const payload: MobilityProfilePayload = { ...form, maxSlopeGradient: null };
     try {
       await save(payload);
       setEditing(false);
@@ -89,8 +63,6 @@ export function MobilityProfileCard() {
       setSaving(false);
     }
   }
-
-  const showGradient = form.avoidSteepSlopes;
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -185,15 +157,6 @@ export function MobilityProfileCard() {
             />
             <Text style={s.infoText}>Avoid steep slopes</Text>
           </View>
-          {profile.maxSlopeGradient != null && (
-            <View style={s.infoRow}>
-              <Ionicons name="trending-up-outline" size={18} color={COLORS.blue500} />
-              <Text style={s.infoText}>
-                Max slope:{' '}
-                <Text style={{ fontWeight: '700' }}>{profile.maxSlopeGradient}%</Text>
-              </Text>
-            </View>
-          )}
         </View>
       )}
 
@@ -226,36 +189,11 @@ export function MobilityProfileCard() {
             <Switch
               testID="avoid-slopes-switch"
               value={form.avoidSteepSlopes}
-              onValueChange={v => {
-                setForm(f => ({ ...f, avoidSteepSlopes: v }));
-                if (!v) setGradientErr('');
-              }}
+              onValueChange={v => setForm(f => ({ ...f, avoidSteepSlopes: v }))}
               trackColor={{ false: COLORS.gray300, true: COLORS.green400 }}
               thumbColor={form.avoidSteepSlopes ? COLORS.green700 : COLORS.white}
             />
           </View>
-
-          {showGradient && (
-            <View style={s.gradientBlock}>
-              <Text style={s.fieldLabel}>MAX SLOPE GRADIENT (%)</Text>
-              <TextInput
-                testID="gradient-input"
-                style={s.gradientInput}
-                value={form.maxSlopeGradient != null ? String(form.maxSlopeGradient) : ''}
-                onChangeText={t => {
-                  const n = parseFloat(t);
-                  setForm(f => ({ ...f, maxSlopeGradient: isNaN(n) ? null : n }));
-                }}
-                keyboardType="decimal-pad"
-                placeholder="e.g. 8  (0 – 25%)"
-                placeholderTextColor={COLORS.gray400}
-                accessibilityLabel="Maximum slope gradient in percent"
-              />
-              {!!gradientErr && (
-                <Text style={s.gradientErrText}>{gradientErr}</Text>
-              )}
-            </View>
-          )}
 
           {!!saveErr && (
             <View style={s.errBanner}>
@@ -356,26 +294,6 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: COLORS.gray800,
-  },
-  gradientBlock: {
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  gradientErrText: {
-    fontSize: 12,
-    color: COLORS.red600,
-    fontWeight: '500',
-    marginTop: 5,
-  },
-  gradientInput: {
-    borderWidth: 1.5,
-    borderColor: COLORS.gray300,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: COLORS.gray900,
-    backgroundColor: COLORS.white,
   },
   errBanner: {
     flexDirection: 'row',
