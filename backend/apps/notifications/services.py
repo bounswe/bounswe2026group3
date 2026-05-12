@@ -15,11 +15,25 @@ def _resolved_message(report: Report) -> str:
     )
 
 
-def create_status_change_notifications(report: Report, new_status: str) -> list[Notification]:
+def _closed_message(report: Report, reason: str | None = None) -> str:
+    base = f'Your report "{report.title}" has been closed.'
+    if reason:
+        return f'{base} {reason}'
+    return base
+
+
+def create_status_change_notifications(
+    report: Report,
+    new_status: str,
+    *,
+    actor_id: int | None = None,
+    reason: str | None = None,
+) -> list[Notification]:
     """Create in-app notifications for a report status transition.
 
     - VERIFIED: notify the reporter only.
     - RESOLVED_AWAITING_VALIDATION: notify reporter + all distinct upvoters.
+    - CLOSED: notify the reporter only (unless they performed the close action).
     Recipients with notifications_enabled=False are skipped silently.
     """
     if new_status == ReportStatus.VERIFIED:
@@ -35,6 +49,13 @@ def create_status_change_notifications(report: Report, new_status: str) -> list[
         recipient_ids = {report.reporter_id} | upvoter_ids
         message = _resolved_message(report)
         notif_type = NotificationType.REPORT_RESOLVED
+    elif new_status == ReportStatus.CLOSED:
+        # Don't self-notify when the reporter closed their own report.
+        if actor_id is not None and actor_id == report.reporter_id:
+            return []
+        recipient_ids = {report.reporter_id}
+        message = _closed_message(report, reason)
+        notif_type = NotificationType.REPORT_CLOSED
     else:
         return []
 

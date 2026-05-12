@@ -97,6 +97,52 @@ class CreateStatusChangeNotificationsTest(TestCase):
     def test_non_relevant_status_creates_nothing(self):
         reporter = make_user(email="reporter@test.com")
         report = make_report(reporter)
+        notifs = create_status_change_notifications(report, ReportStatus.UNVERIFIED)
+        self.assertEqual(notifs, [])
+
+    def test_closed_notifies_only_reporter(self):
+        reporter = make_user(email="reporter@test.com")
+        # Upvoters are NOT notified on CLOSED — only the reporter.
+        upvoter = make_user(email="up@test.com")
+        report = make_report(reporter, status=ReportStatus.RESOLVED_AWAITING_VALIDATION)
+        Interaction.objects.create(
+            report=report, user=upvoter, interaction_type=InteractionType.UPVOTE,
+        )
+
+        notifs = create_status_change_notifications(report, ReportStatus.CLOSED)
+
+        self.assertEqual(len(notifs), 1)
+        self.assertEqual(notifs[0].user_id, reporter.id)
+        self.assertEqual(notifs[0].notification_type, NotificationType.REPORT_CLOSED)
+        self.assertEqual(notifs[0].related_report_id, report.id)
+        self.assertIn(report.title, notifs[0].message)
+
+    def test_closed_skips_when_reporter_is_the_actor(self):
+        reporter = make_user(email="reporter@test.com")
+        report = make_report(reporter, status=ReportStatus.RESOLVED_AWAITING_VALIDATION)
+
+        notifs = create_status_change_notifications(
+            report, ReportStatus.CLOSED, actor_id=reporter.id,
+        )
+        self.assertEqual(notifs, [])
+
+    def test_closed_includes_reason_when_provided(self):
+        reporter = make_user(email="reporter@test.com")
+        report = make_report(reporter, status=ReportStatus.RESOLVED_AWAITING_VALIDATION)
+        other = make_user(email="other@test.com")
+
+        notifs = create_status_change_notifications(
+            report, ReportStatus.CLOSED,
+            actor_id=other.id,
+            reason='Community resolution confirmed.',
+        )
+        self.assertEqual(len(notifs), 1)
+        self.assertIn('Community resolution confirmed.', notifs[0].message)
+
+    def test_closed_respects_notifications_enabled_flag(self):
+        reporter = make_user(email="reporter@test.com", notifications_enabled=False)
+        report = make_report(reporter, status=ReportStatus.RESOLVED_AWAITING_VALIDATION)
+
         notifs = create_status_change_notifications(report, ReportStatus.CLOSED)
         self.assertEqual(notifs, [])
 
@@ -186,6 +232,55 @@ class UpvoteVerifiesAndNotifiesTest(TestCase):
 
         with self.captureOnCommitCallbacks(execute=True):
             self._vote_until_verified()
+
+        self.assertEqual(Notification.objects.filter(user=self.reporter).count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Integration: confirm-resolution threshold triggers REPORT_CLOSED notification
+# ---------------------------------------------------------------------------
+
+from django.test import override_settings
+
+
+@override_settings(RESOLUTION_CONFIRMATION_THRESHOLD=3)
+class ConfirmResolutionClosesAndNotifiesTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.reporter = make_user(email="reporter@test.com")
+        self.report = make_report(
+            self.reporter, status=ReportStatus.RESOLVED_AWAITING_VALIDATION,
+        )
+        self.url = f"/api/reports/{self.report.id}/confirm-resolution/"
+
+    def _confirm_to_threshold(self, last_actor):
+        """Two other users confirm, then `last_actor` confirms — closing the report."""
+        u1 = make_user(email="u1@test.com")
+        u2 = make_user(email="u2@test.com")
+        for u in (u1, u2):
+            self.client.force_authenticate(user=u)
+            self.client.post(self.url)
+        self.client.force_authenticate(user=last_actor)
+        return self.client.post(self.url)
+
+    def test_closed_transition_creates_notification_for_reporter(self):
+        outsider = make_user(email="closer@test.com")
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self._confirm_to_threshold(outsider)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["status"], ReportStatus.CLOSED)
+
+        notifs = list(Notification.objects.filter(user=self.reporter))
+        self.assertEqual(len(notifs), 1)
+        self.assertEqual(notifs[0].notification_type, NotificationType.REPORT_CLOSED)
+        self.assertEqual(notifs[0].related_report_id, self.report.id)
+        self.assertIn(self.report.title, notifs[0].message)
+        self.assertIn('Community resolution confirmed.', notifs[0].message)
+
+    def test_no_notification_when_reporter_closes_their_own_report(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self._confirm_to_threshold(self.reporter)
 
         self.assertEqual(Notification.objects.filter(user=self.reporter).count(), 0)
 
