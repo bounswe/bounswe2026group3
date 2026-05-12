@@ -6,6 +6,12 @@ from apps.reports.models import Report
 
 EARTH_RADIUS_M = 6_371_000
 OBSTACLE_PROXIMITY_RADIUS_M = 40.0
+# Padding added around the origin-destination bounding box when pre-filtering
+# obstacles for Valhalla.  ~1 km at Istanbul's latitude (1° ≈ 111 km).
+ROUTE_OBSTACLE_PADDING_DEG = 0.009
+# Obstacles within this radius of origin/destination are skipped from exclusion:
+# Valhalla fails if an endpoint falls inside an exclude_polygon.
+ENDPOINT_SKIP_RADIUS_M = 25.0
 UNVERIFIED_WARNING_RADIUS_M = 80.0
 VALHALLA_BASE = 'https://valhalla1.openstreetmap.de'
 WALKING_SPEED_MS = 4000 / 3600  # 4 km/h in m/s
@@ -68,11 +74,14 @@ def _decode_polyline(encoded, precision=6):
     return decoded
 
 
-def _get_verified_obstacles():
-    return list(
-        Report.objects.filter(status='VERIFIED', context='OUTDOOR')
-        .values('id', 'latitude', 'longitude', 'title', 'category')
-    )
+def _get_verified_obstacles(bbox=None):
+    qs = Report.objects.filter(status='VERIFIED', context='OUTDOOR')
+    if bbox:
+        qs = qs.filter(
+            latitude__gte=bbox['south'], latitude__lte=bbox['north'],
+            longitude__gte=bbox['west'], longitude__lte=bbox['east'],
+        )
+    return list(qs.values('id', 'latitude', 'longitude', 'title', 'category'))
 
 
 def _get_unverified_obstacles():
@@ -113,7 +122,11 @@ def _obstacles_on_route(waypoints, obstacles, radius_m):
 def _call_valhalla(origin, destination, exclude_locations=None):
     """
     Call Valhalla pedestrian routing API.
-    exclude_locations makes Valhalla avoid road segments near those points.
+    exclude_locations: list of obstacle dicts with 'latitude'/'longitude'.
+    Each obstacle is passed as both an exclude_polygon (~11 m square) and
+    an exclude_location point.  The polygon catches mid-segment obstacles;
+    the point exclusion is a fallback for Valhalla instances that may not
+    fully honour exclude_polygons.
     Returns (waypoints, distance_m, duration_s).
     """
     body = {
@@ -126,8 +139,21 @@ def _call_valhalla(origin, destination, exclude_locations=None):
     }
 
     if exclude_locations:
+        r = 0.0001  # ~11 m at mid-latitudes — blocks the path without sealing off parallel streets
+        body['exclude_polygons'] = [
+            [
+                [float(loc['longitude']) - r, float(loc['latitude']) - r],
+                [float(loc['longitude']) + r, float(loc['latitude']) - r],
+                [float(loc['longitude']) + r, float(loc['latitude']) + r],
+                [float(loc['longitude']) - r, float(loc['latitude']) + r],
+                [float(loc['longitude']) - r, float(loc['latitude']) - r],
+            ]
+            for loc in exclude_locations
+        ]
+        # Also pass as point exclusions — more widely supported by Valhalla
+        # instances that may not honour exclude_polygons.
         body['exclude_locations'] = [
-            {'lat': float(loc['latitude']), 'lon': float(loc['longitude'])}
+            {'lon': float(loc['longitude']), 'lat': float(loc['latitude'])}
             for loc in exclude_locations
         ]
 
@@ -185,11 +211,23 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     origin = [origin_lat, origin_lng]
     destination = [dest_lat, dest_lng]
 
-    verified_obstacles = _get_verified_obstacles()
-    unverified = _get_unverified_obstacles()
-
     # 1) Baseline: shortest route, no exclusions.
     baseline_waypoints, baseline_distance, baseline_duration = _call_valhalla(origin, destination)
+
+    # Build bbox from actual baseline waypoints so obstacles that lie on the
+    # real route (but outside the direct origin-destination box) are captured.
+    pad = ROUTE_OBSTACLE_PADDING_DEG
+    lats = [wp[0] for wp in baseline_waypoints]
+    lngs = [wp[1] for wp in baseline_waypoints]
+    route_bbox = {
+        'south': min(lats) - pad,
+        'north': max(lats) + pad,
+        'west': min(lngs) - pad,
+        'east': max(lngs) + pad,
+    }
+    verified_obstacles = _get_verified_obstacles(bbox=route_bbox)
+    unverified = _get_unverified_obstacles()
+
     on_baseline = _obstacles_on_route(
         baseline_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
     )
@@ -200,22 +238,27 @@ def calculate_route(origin_lat, origin_lng, dest_lat, dest_lng, preferences):
     chosen_waypoints = baseline_waypoints
     on_chosen = on_baseline
 
-    # 2) Try avoidance only if the baseline actually hits obstacles.
-    if on_baseline:
+    # 2) If any verified obstacles exist in the route area, always call Valhalla
+    #    with them as exclusions and use that as the chosen route. Obstacles
+    #    too close to origin/destination are skipped: if an endpoint falls
+    #    inside an exclude_polygon Valhalla returns a 400 and we'd fall back
+    #    to the baseline (which goes through the obstacle).
+    avoidable = [
+        obs for obs in verified_obstacles
+        if haversine(origin[0], origin[1], float(obs['latitude']), float(obs['longitude'])) > ENDPOINT_SKIP_RADIUS_M
+        and haversine(destination[0], destination[1], float(obs['latitude']), float(obs['longitude'])) > ENDPOINT_SKIP_RADIUS_M
+    ]
+    if avoidable:
         try:
             alt_waypoints, alt_distance, alt_duration = _call_valhalla(
-                origin, destination, exclude_locations=verified_obstacles,
+                origin, destination, exclude_locations=avoidable,
             )
             on_alternative = _obstacles_on_route(
                 alt_waypoints, verified_obstacles, OBSTACLE_PROXIMITY_RADIUS_M
             )
-            on_alternative_ids = {obs['id'] for obs in on_alternative}
-            # Only surface the alternative if it removes at least one of the
-            # baseline-blocking obstacles.
-            if on_baseline_ids - on_alternative_ids:
-                alternative_route = _route_payload(alt_waypoints, alt_distance, alt_duration)
-                chosen_waypoints = alt_waypoints
-                on_chosen = on_alternative
+            alternative_route = _route_payload(alt_waypoints, alt_distance, alt_duration)
+            chosen_waypoints = alt_waypoints
+            on_chosen = on_alternative
         except ValueError:
             # Avoidance failed — stick with baseline.
             pass
