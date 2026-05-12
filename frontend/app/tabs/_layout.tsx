@@ -1,16 +1,80 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../src/constants/theme';
+import { COLORS, FONTS } from '../../src/constants/theme';
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerStyle: { backgroundColor: COLORS.green900 }, headerTintColor: COLORS.white, headerTitleStyle: { fontWeight: '700', fontSize: 17 }, headerShadowVisible: false, tabBarActiveTintColor: COLORS.blue600, tabBarInactiveTintColor: COLORS.gray400, tabBarStyle: { backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray200, height: 60, paddingBottom: 10, paddingTop: 4 }, tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: -2 } }}>
-      <Tabs.Screen name="index" options={{ title: 'Map', headerTitle: 'AccessMap', tabBarIcon: ({ color, size }) => <Ionicons name="map-outline" size={size} color={color} /> }} />
+    <Tabs
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: COLORS.bone,
+          borderBottomWidth: 1,
+          borderBottomColor: COLORS.rule,
+        },
+        headerTintColor: COLORS.ink,
+        headerTitleStyle: {
+          fontFamily: FONTS.display,
+          fontWeight: '600',
+          fontSize: 22,
+          letterSpacing: -0.3,
+          color: COLORS.ink,
+        },
+        headerShadowVisible: false,
+        sceneStyle: { backgroundColor: COLORS.bone },
+        tabBarActiveTintColor: COLORS.ink,
+        tabBarInactiveTintColor: COLORS.inkMuted,
+        tabBarStyle: {
+          backgroundColor: COLORS.bone,
+          borderTopWidth: 1,
+          borderTopColor: COLORS.rule,
+          height: 64,
+          paddingBottom: 10,
+          paddingTop: 6,
+        },
+        tabBarLabelStyle: {
+          fontFamily: FONTS.body,
+          fontSize: 10,
+          fontWeight: '600',
+          letterSpacing: 0.4,
+          textTransform: 'uppercase',
+          marginTop: 0,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Map',
+          headerTitle: 'AccessMap',
+          tabBarIcon: ({ color, size }) => <Ionicons name="map-outline" size={size} color={color} />,
+        }}
+      />
       <Tabs.Screen name="plan" options={{ href: null }} />
       <Tabs.Screen name="map" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ title: 'Notifications', headerTitle: 'Notifications', tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="report" options={{ title: 'Report', headerTitle: 'Report Obstacle', tabBarIcon: ({ color, size }) => <Ionicons name="flag-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', headerTitle: 'Profile', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} /> }} />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          headerTitle: 'Notifications',
+          tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="report"
+        options={{
+          title: 'Report',
+          headerTitle: 'Report Obstacle',
+          tabBarIcon: ({ color, size }) => <Ionicons name="flag-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          headerTitle: 'Profile',
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

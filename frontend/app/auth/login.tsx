@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter, Link, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../src/constants/theme';
+import { COLORS, FONTS } from '../../src/constants/theme';
 import { login, setTokens, parseDRFError, getMe, landingRouteForRole } from '../../src/services/auth';
 
 export default function LoginScreen() {
@@ -82,13 +82,13 @@ export default function LoginScreen() {
 const s = StyleSheet.create({
   flex: { flex: 1, backgroundColor: COLORS.gray100 },
   scroll: { flexGrow: 1 },
-  header: { backgroundColor: COLORS.green900, paddingTop: 60, paddingBottom: 28, alignItems: 'center' },
-  logoBox: { width: 52, height: 52, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.white, letterSpacing: -0.5 },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4 },
+  header: { backgroundColor: COLORS.ink, paddingTop: 72, paddingBottom: 40, alignItems: 'center' },
+  logoBox: { width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(245,241,232,0.10)', alignItems: 'center', justifyContent: 'center', marginBottom: 18, borderWidth: 1, borderColor: 'rgba(245,241,232,0.18)' },
+  headerTitle: { fontFamily: FONTS.display, fontSize: 32, fontWeight: '600', color: COLORS.bone, letterSpacing: -0.8 },
+  headerSub: { fontFamily: FONTS.body, fontSize: 12, color: 'rgba(245,241,232,0.55)', marginTop: 6, letterSpacing: 1.5, textTransform: 'uppercase' },
   card: { backgroundColor: COLORS.white, marginHorizontal: 14, marginTop: 14, borderRadius: 14, padding: 18, borderWidth: 1, borderColor: COLORS.gray200 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.gray800 },
+  cardTitle: { fontFamily: FONTS.display, fontSize: 20, fontWeight: '600', color: COLORS.ink, letterSpacing: -0.3 },
   successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.green50, padding: 12, borderRadius: 10, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(22,163,74,0.15)' },
   successBannerText: { fontSize: 13, color: COLORS.green600, fontWeight: '500', flex: 1 },
   apiBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.red50, padding: 12, borderRadius: 10, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)' },
@@ -101,8 +101,8 @@ const s = StyleSheet.create({
   pwToggle: { position: 'absolute' as const, right: 12, top: 12, padding: 2 },
   fieldError: { fontSize: 12, color: COLORS.red600, marginTop: 4, fontWeight: '500' },
   forgot: { fontSize: 12, fontWeight: '600', color: COLORS.blue600, textAlign: 'right' as const, marginTop: 8, marginBottom: 16 },
-  btnBlue: { backgroundColor: COLORS.blue600, paddingVertical: 14, borderRadius: 10, alignItems: 'center' as const, justifyContent: 'center' as const },
-  btnText: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  btnBlue: { backgroundColor: COLORS.ink, paddingVertical: 16, borderRadius: 4, alignItems: 'center' as const, justifyContent: 'center' as const },
+  btnText: { color: COLORS.bone, fontSize: 14, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase' },
   footer: { flexDirection: 'row' as const, justifyContent: 'center' as const, paddingVertical: 20 },
   footerText: { fontSize: 13, color: COLORS.gray500 },
   footerLink: { fontSize: 13, fontWeight: '600', color: COLORS.blue600 },

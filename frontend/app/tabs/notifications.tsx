@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../src/constants/theme';
+import { COLORS, FONTS } from '../../src/constants/theme';
 import { isLoggedIn, getMe } from '../../src/services/auth';
 import { getNotifications, markNotificationRead, Notification } from '../../src/api/notifications';
 
@@ -136,10 +136,10 @@ const s = StyleSheet.create({
   scroll: { paddingTop: 12, paddingHorizontal: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.gray100, paddingHorizontal: 32 },
 empty: { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyText: { fontSize: 16, fontWeight: '700', color: COLORS.gray500 },
-  emptySub: { fontSize: 13, color: COLORS.gray400, textAlign: 'center' },
-  disabledTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray600, marginTop: 14 },
-  disabledSub: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', marginTop: 6 },
+  emptyText: { fontFamily: FONTS.display, fontSize: 22, fontWeight: '600', color: COLORS.ink, letterSpacing: -0.3, marginTop: 4 },
+  emptySub: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, textAlign: 'center', maxWidth: 260, lineHeight: 19 },
+  disabledTitle: { fontFamily: FONTS.display, fontSize: 22, fontWeight: '600', color: COLORS.ink, letterSpacing: -0.3, marginTop: 14 },
+  disabledSub: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, textAlign: 'center', marginTop: 6, maxWidth: 260, lineHeight: 19 },
   item: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.gray200 },
   itemUnread: { backgroundColor: COLORS.green50, borderColor: 'rgba(39,114,74,0.18)' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.gray300, marginRight: 12, flexShrink: 0 },

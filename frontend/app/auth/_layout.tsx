@@ -1,9 +1,22 @@
 import { Stack } from 'expo-router';
-import { COLORS } from '../../src/constants/theme';
+import { COLORS, FONTS } from '../../src/constants/theme';
 
 export default function AuthLayout() {
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: COLORS.green900 }, headerTintColor: COLORS.white, headerTitleStyle: { fontWeight: '700', fontSize: 17 }, headerShadowVisible: false }}>
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: COLORS.ink },
+        headerTintColor: COLORS.bone,
+        headerTitleStyle: {
+          fontFamily: FONTS.display,
+          fontWeight: '600',
+          fontSize: 22,
+          letterSpacing: -0.3,
+        },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: COLORS.bone },
+      }}
+    >
       <Stack.Screen name="login" options={{ title: 'Sign In', headerShown: false }} />
       <Stack.Screen name="register" options={{ title: 'Create Account', headerShown: false }} />
       <Stack.Screen name="forgot-password" options={{ title: 'Reset Password' }} />
