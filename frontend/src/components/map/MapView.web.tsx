@@ -25,7 +25,7 @@ import SavePlaceModal from './SavePlaceModal';
 import { useLocation } from '../../hooks/useLocation';
 import { COLORS } from '../../constants/theme';
 import { HIGH_DETAIL_ZOOM } from '../../constants/mapConstants';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -236,6 +236,7 @@ export default function MapView() {
   const [boundsKey, setBoundsKey] = useState('');
   const [detailMap, setDetailMap] = useState<Record<string, ObstacleDetail | 'loading'>>({});
   const [showPassive, setShowPassive] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   // Search state
   const [query, setQuery] = useState('');
@@ -370,6 +371,20 @@ export default function MapView() {
     let cancelled = false;
     fetchObstacles(nb, showPassive).then((data) => {
       if (cancelled) return;
+      // Reconcile cache within the queried bbox: drop entries that the server
+      // no longer returns (e.g. status went to CLOSED, or the report was
+      // deleted). Cached obstacles outside `nb` are left alone so they stay
+      // visible on swipe-back.
+      const returnedIds = new Set(data.map((o) => o.id));
+      for (const [id, obs] of obstacleMapRef.current) {
+        if (returnedIds.has(id)) continue;
+        if (
+          obs.latitude <= nb.north && obs.latitude >= nb.south &&
+          obs.longitude <= nb.east && obs.longitude >= nb.west
+        ) {
+          obstacleMapRef.current.delete(id);
+        }
+      }
       for (const obs of data) obstacleMapRef.current.set(obs.id, obs);
       const cur = fetchedBoundsRef.current;
       fetchedBoundsRef.current = cur ? {
@@ -381,7 +396,18 @@ export default function MapView() {
       setObstacles([...obstacleMapRef.current.values()]);
     });
     return () => { cancelled = true; };
-  }, [boundsKey, showPassive]);
+  }, [boundsKey, showPassive, refreshNonce]);
+
+  // Refetch every time the map regains focus so newly-submitted reports and
+  // status changes made on the detail screen (e.g. CLOSED via confirm
+  // resolution) appear/disappear without a manual reload. Invalidating the
+  // fetched-bounds union bypasses the zoom-in skip below.
+  useFocusEffect(
+    useCallback(() => {
+      fetchedBoundsRef.current = null;
+      setRefreshNonce((n) => n + 1);
+    }, []),
+  );
 
   const handleBoundsChange = useCallback((b: L.LatLngBounds, z: number) => {
     currentBoundsRef.current = b;

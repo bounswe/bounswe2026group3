@@ -167,7 +167,7 @@ def toggle_upvote(user, report_id) -> dict:
         auto_verified = False
         if (
             report.status == ReportStatus.UNVERIFIED
-            and upvote_count_check > _upvote_threshold_for(report.reporter)
+            and upvote_count_check >= _upvote_threshold_for(report.reporter)
         ):
             old_status = report.status
             report.status = ReportStatus.VERIFIED
