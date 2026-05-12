@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.users',
     'apps.authority',
-    'apps.interactions',
     'apps.map',
     'apps.notifications',
     'apps.places',
