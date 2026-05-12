@@ -24,8 +24,7 @@ export default function ConfirmResolutionButton({
 
   const eligible =
     status === 'RESOLVED_AWAITING_VALIDATION' &&
-    currentUserId !== '' &&
-    (currentUserId === reporterId || userUpvoted);
+    currentUserId !== '';
 
   if (!eligible) return null;
 
