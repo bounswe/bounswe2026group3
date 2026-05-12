@@ -319,7 +319,7 @@ export default function ReportDetailScreen() {
 
       <StatusHistorySection history={detail.statusHistory} />
 
-      <DiscussionSection reportId={detail.id} currentUserId={currentUserId} />
+      <DiscussionSection reportId={detail.id} currentUserId={currentUserId} readonly={detail.status === 'CLOSED'} />
     </ScrollView>
   );
 }

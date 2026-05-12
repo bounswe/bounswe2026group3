@@ -46,9 +46,10 @@ function timeAgo(dateStr: string): string {
 interface Props {
   reportId: string;
   currentUserId: string;
+  readonly?: boolean;
 }
 
-export default function DiscussionSection({ reportId, currentUserId }: Props) {
+export default function DiscussionSection({ reportId, currentUserId, readonly = false }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [body, setBody] = useState('');
@@ -121,7 +122,7 @@ export default function DiscussionSection({ reportId, currentUserId }: Props) {
         ))
       )}
 
-      {isGuest ? (
+      {!readonly && (isGuest ? (
         <View style={s.guestPrompt} testID="discussion-guest-prompt">
           <Ionicons name="lock-closed-outline" size={14} color={COLORS.gray400} />
           <Text style={s.guestText}>Sign in to join the discussion</Text>
@@ -148,7 +149,7 @@ export default function DiscussionSection({ reportId, currentUserId }: Props) {
               : <Ionicons name="send" size={15} color={COLORS.white} />}
           </TouchableOpacity>
         </View>
-      )}
+      ))}
     </View>
   );
 }
