@@ -30,4 +30,8 @@ class IsAuthority(permissions.BasePermission):
 
 class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == UserRole.ADMINISTRATOR
+        return (
+            request.user.is_authenticated
+            and request.user.role == UserRole.ADMINISTRATOR
+            and _account_is_active(request.user)
+        )
