@@ -90,8 +90,6 @@ export default function NotificationsScreen() {
       contentContainerStyle={s.scroll}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.green700} />}
     >
-      <Text style={s.heading}>Notifications</Text>
-
       {notifications.length === 0 ? (
         <View style={s.empty} testID="notifications-empty">
           <Ionicons name="notifications-outline" size={48} color={COLORS.gray300} />
@@ -137,8 +135,7 @@ const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.gray100 },
   scroll: { paddingTop: 12, paddingHorizontal: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.gray100, paddingHorizontal: 32 },
-  heading: { fontSize: 22, fontWeight: '800', color: COLORS.gray900, marginBottom: 14 },
-  empty: { alignItems: 'center', paddingVertical: 60, gap: 10 },
+empty: { alignItems: 'center', paddingVertical: 60, gap: 10 },
   emptyText: { fontSize: 16, fontWeight: '700', color: COLORS.gray500 },
   emptySub: { fontSize: 13, color: COLORS.gray400, textAlign: 'center' },
   disabledTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray600, marginTop: 14 },
