@@ -5,6 +5,7 @@ from django.db import models
 class NotificationType(models.TextChoices):
     REPORT_VERIFIED = 'REPORT_VERIFIED', 'Report Verified'
     REPORT_RESOLVED = 'REPORT_RESOLVED', 'Report Resolved'
+    REPORT_CLOSED = 'REPORT_CLOSED', 'Report Closed'
 
 
 class Notification(models.Model):

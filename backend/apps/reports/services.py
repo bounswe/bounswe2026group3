@@ -310,15 +310,26 @@ def register_resolution_confirmation(user, report_id) -> dict:
     ).count()
 
     if created and confirmation_count >= settings.RESOLUTION_CONFIRMATION_THRESHOLD:
+        from apps.reports.signals import report_status_changed
+
         old_status = report.status
         report.status = ReportStatus.CLOSED
         report.save(update_fields=['status', 'updated_at'])
+        close_reason = 'Community resolution confirmed.'
         StatusChange.objects.create(
             report=report,
             changed_by=user,
             old_status=old_status,
             new_status=ReportStatus.CLOSED,
-            reason='Community resolution confirmed.',
+            reason=close_reason,
+        )
+        report_status_changed.send(
+            sender=Report,
+            report=report,
+            old_status=old_status,
+            new_status=ReportStatus.CLOSED,
+            actor=user,
+            reason=close_reason,
         )
 
     return {
