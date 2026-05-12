@@ -38,11 +38,8 @@ def get_obstacle_detail(report_id):
                     ReportStatus.VERIFIED,
                     ReportStatus.UNVERIFIED,
                     ReportStatus.PASSIVE,
-                    # Citizens need access to RESOLVED_AWAITING_VALIDATION reports so
-                    # they can confirm the repair from a status-change notification,
-                    # and authorities need access to refresh the detail screen after
-                    # they submit a resolution.
                     ReportStatus.RESOLVED_AWAITING_VALIDATION,
+                    ReportStatus.CLOSED,
                 ],
             )
         )

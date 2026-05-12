@@ -278,8 +278,8 @@ export default function ReportDetailScreen() {
         )}
       </View>
 
-      {/* Interaction bar */}
-      <View style={s.interactionCard}>
+      {/* Interaction bar — hidden for closed reports */}
+      {detail.status !== 'CLOSED' && <View style={s.interactionCard}>
         <InteractionBar
           reportId={detail.id}
           reporterId={detail.reporterId}
@@ -292,7 +292,7 @@ export default function ReportDetailScreen() {
           currentUserId={currentUserId}
           onUpdate={(patch) => setDetail((d) => (d ? { ...d, ...patch } : d))}
         />
-      </View>
+      </View>}
 
       <ConfirmResolutionButton
         reportId={detail.id}
