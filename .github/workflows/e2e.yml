@@ -1,0 +1,54 @@
+name: E2E Smoke Tests
+
+# Runs the Playwright smoke suite (issue #178) against the deployed environment.
+#
+# Required repository configuration (Settings → Secrets and variables → Actions):
+#   Variables:
+#     E2E_BASE_URL   — URL of the deployed web app   (e.g. https://accessmap.vercel.app)
+#     E2E_API_URL    — URL of the deployed backend    (e.g. https://api.accessmap.example.com)
+#
+# To make a failure block merges to main, add this job ("E2E Smoke") as a
+# required status check under Settings → Branches → Branch protection rules.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ vars.E2E_BASE_URL }}
+          PLAYWRIGHT_API_URL: ${{ vars.E2E_API_URL }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
