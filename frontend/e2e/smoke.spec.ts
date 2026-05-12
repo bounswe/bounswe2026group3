@@ -15,7 +15,7 @@ import {
 // role, and screen headers often repeat the button's label, so we locate
 // tappable controls by visible text and disambiguate with .last().
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:8081';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8081';
 
 // 1×1 transparent PNG — enough for expo-image-picker's web file reader.
 const PNG_1PX = Buffer.from(

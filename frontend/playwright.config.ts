@@ -7,7 +7,8 @@ import { defineConfig, devices } from '@playwright/test';
 //
 // In CI, set both to the deployed URLs as repository secrets/variables.
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:8081';
+// `||` not `??`: CI passes the var through as "" when the repo variable is unset.
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8081';
 
 export default defineConfig({
   testDir: './e2e',

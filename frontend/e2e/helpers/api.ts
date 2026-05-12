@@ -4,7 +4,8 @@ import type { Page } from '@playwright/test';
 // driving the UI for every precondition. Mirrors src/services/auth.ts and
 // src/api/reports.ts.
 
-export const API_URL = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:8000';
+// `||` not `??`: CI passes the var through as "" when the repo variable is unset.
+export const API_URL = process.env.PLAYWRIGHT_API_URL || 'http://localhost:8000';
 
 // Boğaziçi University campus — the app centres its map here.
 export const BOUN_CENTER = { lat: 41.0847, lng: 29.0503 };
