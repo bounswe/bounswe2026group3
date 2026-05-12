@@ -804,3 +804,47 @@ class DecayUnverifiedReportsCommandTest(TestCase):
         old.refresh_from_db()
         self.assertEqual(recent.status, ReportStatus.UNVERIFIED)
         self.assertEqual(old.status, ReportStatus.PASSIVE)
+
+
+# ---------------------------------------------------------------------------
+# Serializer: ObstacleDetailSerializer — violations field
+# ---------------------------------------------------------------------------
+
+class ObstacleDetailSerializerViolationsTest(TestCase):
+    def _make_mock_report(self, violations=None):
+        import uuid as _uuid
+        from unittest.mock import PropertyMock
+        r = MagicMock()
+        r.id = _uuid.uuid4()
+        r.reporter.id = _uuid.uuid4()
+        r.reporter.role = "REGISTERED_USER"
+        r.latitude = 41.0837
+        r.longitude = 29.051
+        r.category = ObstacleCategory.BROKEN_RAMP
+        r.context = ReportContext.OUTDOOR
+        r.status = ReportStatus.UNVERIFIED
+        r.description = "Test report"
+        r.violations = violations if violations is not None else []
+        r.interactions.all.return_value = []
+        r.photos.all.return_value = []
+        r.status_changes.all.return_value = []
+        r.created_at = None
+        return r
+
+    def test_violations_returned_in_detail(self):
+        from apps.map.serializers import ObstacleDetailSerializer
+        report = self._make_mock_report(violations=["RAMP_TOO_STEEP", "RAMP_NO_HANDRAIL"])
+        data = ObstacleDetailSerializer(report).data
+        self.assertEqual(data["violations"], ["RAMP_TOO_STEEP", "RAMP_NO_HANDRAIL"])
+
+    def test_empty_violations_returned_as_empty_list(self):
+        from apps.map.serializers import ObstacleDetailSerializer
+        report = self._make_mock_report(violations=[])
+        data = ObstacleDetailSerializer(report).data
+        self.assertEqual(data["violations"], [])
+
+    def test_violations_key_always_present(self):
+        from apps.map.serializers import ObstacleDetailSerializer
+        report = self._make_mock_report()
+        data = ObstacleDetailSerializer(report).data
+        self.assertIn("violations", data)

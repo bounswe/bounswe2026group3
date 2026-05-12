@@ -133,7 +133,6 @@ function ViolationDetailModal({
               <Text style={s.modalBody}>{standard.requirement}</Text>
               <Text style={s.modalSectionLabel}>Why it matters</Text>
               <Text style={s.modalBody}>{standard.why}</Text>
-              <Text style={s.modalRef}>Source: {standard.pdfRef}</Text>
             </>
           )}
         </Pressable>
