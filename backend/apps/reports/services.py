@@ -281,9 +281,8 @@ def register_flag(user, report_id) -> dict:
 
 @transaction.atomic
 def register_resolution_confirmation(user, report_id) -> dict:
-    """Record a resolution confirmation from an eligible user.
+    """Record a resolution confirmation from any logged-in user.
 
-    Eligible users are the original reporter or anyone who previously upvoted.
     Idempotent: re-calling by the same user does not double-count.
     When the confirmation count reaches RESOLUTION_CONFIRMATION_THRESHOLD,
     the report transitions to CLOSED and the transition is recorded in StatusChange.
@@ -291,7 +290,6 @@ def register_resolution_confirmation(user, report_id) -> dict:
     Raises:
         Report.DoesNotExist                  — unknown report id
         ReportNotAwaitingValidationError     — report is not RESOLVED_AWAITING_VALIDATION
-        NotEligibleToConfirmError            — user is neither reporter nor upvoter
     """
     report = Report.objects.select_for_update().get(pk=report_id)
 
@@ -299,14 +297,6 @@ def register_resolution_confirmation(user, report_id) -> dict:
         raise ReportNotAwaitingValidationError()
 
     is_reporter = report.reporter_id == user.id
-    is_upvoter = Interaction.objects.filter(
-        report=report,
-        user=user,
-        interaction_type=InteractionType.UPVOTE,
-    ).exists()
-
-    if not (is_reporter or is_upvoter):
-        raise NotEligibleToConfirmError()
 
     _, created = Interaction.objects.get_or_create(
         report=report,
