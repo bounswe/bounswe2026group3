@@ -81,4 +81,16 @@ describe('submitReport (mock mode)', () => {
     expect(body.location.lat).toBe(41.084312);
     expect(body.location.lng).toBe(29.051988);
   });
+
+  it('includes violations in request body when provided', async () => {
+    await submitReport({ ...BASE_PAYLOAD, violations: ['RAMP_TOO_STEEP', 'RAMP_NO_HANDRAIL'] });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.violations).toEqual(['RAMP_TOO_STEEP', 'RAMP_NO_HANDRAIL']);
+  });
+
+  it('sends empty violations array when violations is empty', async () => {
+    await submitReport({ ...BASE_PAYLOAD, violations: [] });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.violations).toEqual([]);
+  });
 });

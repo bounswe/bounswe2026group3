@@ -35,6 +35,7 @@ export interface ObstacleDetail extends Obstacle {
   userUpvoted: boolean;
   userFlagged: boolean;
   userConfirmed: boolean;
+  violations: string[];
   reporterId: string;
   createdAt: string;
   statusHistory: StatusChange[];
@@ -129,6 +130,7 @@ export async function fetchObstacleDetail(id: string): Promise<ObstacleDetail | 
       userUpvoted: raw.userUpvoted ?? false,
       userFlagged: raw.userFlagged ?? false,
       userConfirmed: raw.userConfirmed ?? false,
+      violations: Array.isArray(raw.violations) ? raw.violations : [],
       reporterId: raw.reporterId ?? '',
       createdAt: raw.createdAt ?? '',
       statusHistory: (raw.statusHistory ?? []).map((h: any) => ({

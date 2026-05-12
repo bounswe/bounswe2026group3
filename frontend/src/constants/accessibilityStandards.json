@@ -1,0 +1,429 @@
+{
+  "version": "1.0",
+  "source": "T.C. Aile ve Sosyal Hizmetler Bakanlığı — Erişilebilirlik Kılavuzu — Binalar (2nd ed., 2024, ISBN 978-625-8402-08-7)",
+  "notes": [
+    "Each top-level key matches an ObstacleCategory enum value used in the backend (apps/reports/models.py) and frontend (types/report.ts).",
+    "The 'code' field is what gets persisted on a report.",
+    "The 'label' is the short user-facing chip text — already phrased qualitatively so the user does not need to measure.",
+    "'short' is one sentence the form may show under the chip as a hint.",
+    "'requirement' quotes the underlying standard (with the actual measurement from the PDF) for the detail screen.",
+    "'why' explains in plain language who is affected and why it matters.",
+    "'pdfRef' cites the section in the source PDF.",
+    "OTHER category and any category not listed here intentionally has no violation chips."
+  ],
+  "standards": {
+    "BROKEN_RAMP": [
+      {
+        "code": "RAMP_TOO_STEEP",
+        "label": "Too steep",
+        "short": "The slope feels too steep to climb safely.",
+        "requirement": "Maximum slope is 8% (1:12) for rises up to 15 cm. For taller rises the limit is lower: 7% up to 50 cm, 6% up to 100 cm, 5% above 100 cm.",
+        "why": "A steep ramp is unsafe for a wheelchair user without assistance and dangerous to descend in either direction.",
+        "pdfRef": "§1.5"
+      },
+      {
+        "code": "RAMP_TOO_NARROW",
+        "label": "Too narrow",
+        "short": "Not wide enough for a wheelchair to pass.",
+        "requirement": "Clear width must be at least 100 cm, measured between handrails or curbs.",
+        "why": "A wheelchair plus handrails will not physically fit in a narrower ramp.",
+        "pdfRef": "§1.5"
+      },
+      {
+        "code": "RAMP_NO_HANDRAIL",
+        "label": "No handrails",
+        "short": "Handrails are missing on one or both sides.",
+        "requirement": "Handrails required on both sides at 90 cm and 70 cm height for any rise greater than 15 cm or length greater than 2 m.",
+        "why": "People with limited balance, ambulatory disabled users and elderly users rely on handrails to use a ramp safely.",
+        "pdfRef": "§1.5"
+      },
+      {
+        "code": "RAMP_SLIPPERY_OR_DAMAGED",
+        "label": "Slippery or damaged surface",
+        "short": "Surface is wet, smooth, cracked, or unstable.",
+        "requirement": "Surface must be flat, stable and non-slip in both wet and dry conditions (TS 13882 — outdoor ramps at least R11).",
+        "why": "Slippery or uneven ramps cause falls, especially when wet.",
+        "pdfRef": "§1.5, §1.7"
+      },
+      {
+        "code": "RAMP_NO_LANDING",
+        "label": "No landing at top or bottom",
+        "short": "No flat resting space at the ends.",
+        "requirement": "Flat landing of at least 150 × 150 cm at the top, bottom, every change of direction, and every 9 m along the ramp.",
+        "why": "Wheelchair users need a flat space to rest, open a door, or turn around.",
+        "pdfRef": "§1.5"
+      },
+      {
+        "code": "RAMP_NO_EDGE_GUARD",
+        "label": "No edge protection",
+        "short": "Open edge with nothing to keep wheels from slipping off.",
+        "requirement": "Protective curb of at least 5 cm on any open edge of the ramp and its landings.",
+        "why": "Keeps a wheelchair wheel or cane from slipping off the side of the ramp.",
+        "pdfRef": "§1.5"
+      }
+    ],
+
+    "NARROW_SIDEWALK": [
+      {
+        "code": "SIDEWALK_TOO_NARROW",
+        "label": "Too narrow to pass",
+        "short": "Not wide enough for a wheelchair or stroller.",
+        "requirement": "Minimum clear walking path of 100 cm; 150 cm recommended where two-way traffic is expected.",
+        "why": "A wheelchair, walker, or stroller cannot pass through a narrower path.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "SIDEWALK_OBSTACLE_IN_PATH",
+        "label": "Obstacle in path",
+        "short": "Pole, sign, bench or planter sticking into the walking area.",
+        "requirement": "Nothing should protrude more than 10 cm into the walking path between 68.5 cm and 220 cm height; clear headroom is 220 cm.",
+        "why": "Protruding objects are invisible to blind users using a cane below knee level and cause head and shoulder injuries.",
+        "pdfRef": "§1.7, §7"
+      },
+      {
+        "code": "SIDEWALK_NO_CURB_RAMP",
+        "label": "No curb ramp at crossing",
+        "short": "Sidewalk meets the road with a step.",
+        "requirement": "A curb ramp is required wherever a sidewalk meets a road; a tactile warning surface should mark the top.",
+        "why": "Without a curb ramp wheelchair users cannot cross the street at all.",
+        "pdfRef": "§2.2"
+      },
+      {
+        "code": "SIDEWALK_UNEVEN",
+        "label": "Uneven surface",
+        "short": "Surface is bumpy, sloped sideways, or has small steps.",
+        "requirement": "Surface must be flat and stable; any level difference greater than 1.3 cm must be bridged by a ramp.",
+        "why": "Small steps trip elderly users and tip wheelchairs sideways.",
+        "pdfRef": "§1.4, §1.7"
+      }
+    ],
+
+    "DAMAGED_SURFACE": [
+      {
+        "code": "SURFACE_CRACKS_OR_HOLES",
+        "label": "Cracks or holes",
+        "short": "Visible cracks, potholes or missing pieces of pavement.",
+        "requirement": "Walking surfaces must be continuous, flat and stable.",
+        "why": "Cracks catch cane tips, wheelchair wheels and stroller wheels and cause falls.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "SURFACE_LOOSE_TILES",
+        "label": "Loose tiles or stones",
+        "short": "Paving stones move or wobble when stepped on.",
+        "requirement": "Surface materials must be firmly fixed and stable.",
+        "why": "Loose paving shifts under weight and causes falls.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "SURFACE_GRID_GAP",
+        "label": "Grid or drain gaps too wide",
+        "short": "Drain or grid slots run along the walking direction or are wide.",
+        "requirement": "Drain and grid openings must be at most 13 mm wide, oriented perpendicular to the walking direction.",
+        "why": "Wider or parallel gaps trap canes, wheelchair wheels and stroller wheels.",
+        "pdfRef": "§1.4"
+      },
+      {
+        "code": "SURFACE_STEP_OR_DROP",
+        "label": "Step or sudden drop",
+        "short": "There is a step where a ramp should be.",
+        "requirement": "Any level difference greater than 1.3 cm must be bridged by a ramp.",
+        "why": "Even a small step is an impassable barrier for a wheelchair.",
+        "pdfRef": "§1.4"
+      },
+      {
+        "code": "SURFACE_SLIPPERY_WET",
+        "label": "Slippery when wet",
+        "short": "Surface becomes slick in rain.",
+        "requirement": "Surface must remain non-slip in wet conditions (TS 13882; outdoor walking surfaces at least R10).",
+        "why": "Most accessibility falls happen on wet, smooth surfaces.",
+        "pdfRef": "§1.7"
+      }
+    ],
+
+    "ROAD_CONSTRUCTION": [
+      {
+        "code": "CONSTRUCTION_NO_DETOUR",
+        "label": "No accessible detour",
+        "short": "The path is blocked and there is no marked alternative.",
+        "requirement": "Construction that closes a pedestrian path must provide an accessible alternative route.",
+        "why": "Without a detour the area becomes impassable for wheelchair users.",
+        "pdfRef": "general"
+      },
+      {
+        "code": "CONSTRUCTION_UNMARKED_ROUTE",
+        "label": "Detour not marked",
+        "short": "It is unclear where pedestrians should walk.",
+        "requirement": "Temporary routes must be clearly marked with both visual and tactile signs.",
+        "why": "Blind and low-vision users cannot perceive an unmarked detour.",
+        "pdfRef": "general"
+      },
+      {
+        "code": "CONSTRUCTION_UNSAFE_BARRIERS",
+        "label": "Open hazard, no barrier",
+        "short": "Open trenches, machinery or holes with nothing protecting pedestrians.",
+        "requirement": "Open excavations, scaffolding bases and equipment must be enclosed by solid barriers detectable by a cane.",
+        "why": "Open hazards in walking paths cause serious injury, especially to blind users.",
+        "pdfRef": "general"
+      },
+      {
+        "code": "CONSTRUCTION_UNSAFE_TEMP_SURFACE",
+        "label": "Temporary surface unsafe",
+        "short": "Metal plates, boards or planks are loose or have gaps.",
+        "requirement": "Temporary walking surfaces must be flat, stable, non-slip and gap-free.",
+        "why": "Rocking metal plates and loose boards tip wheelchairs and catch canes.",
+        "pdfRef": "general"
+      }
+    ],
+
+    "BLOCKED_PATH": [
+      {
+        "code": "BLOCK_PERMANENT",
+        "label": "Permanently blocked",
+        "short": "The path is closed off and shows no sign of being temporary.",
+        "requirement": "Pedestrian paths must remain unobstructed (at least 100 cm clear).",
+        "why": "A permanent block forces a long, often unsafe detour into the road.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "BLOCK_VEHICLE",
+        "label": "Vehicle blocking path",
+        "short": "A parked car, scooter or delivery vehicle is in the walking area.",
+        "requirement": "Vehicles must not be parked on pedestrian routes.",
+        "why": "Forces wheelchair users into the road.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "BLOCK_VEGETATION",
+        "label": "Overgrown vegetation",
+        "short": "Branches or bushes have grown into the walking area.",
+        "requirement": "Vegetation must not encroach on the 100 cm walking corridor or 220 cm head clearance.",
+        "why": "Branches at head height are dangerous to blind users who cannot detect them with a cane.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "BLOCK_DEBRIS",
+        "label": "Trash or debris",
+        "short": "Garbage bags, leaves, or building debris pile up in the path.",
+        "requirement": "Walking surfaces must be kept clear.",
+        "why": "Tripping hazard, especially for low-vision and elderly users.",
+        "pdfRef": "§1.7"
+      }
+    ],
+
+    "BROKEN_ELEVATOR": [
+      {
+        "code": "ELEVATOR_OUT_OF_ORDER",
+        "label": "Out of order",
+        "short": "The elevator is not working.",
+        "requirement": "A functioning elevator is required for accessible vertical circulation in multi-floor buildings.",
+        "why": "When the only elevator is out of order, every floor above ground level is inaccessible.",
+        "pdfRef": "§8.1"
+      },
+      {
+        "code": "ELEVATOR_CABIN_TOO_SMALL",
+        "label": "Cabin too small",
+        "short": "A wheelchair does not fit inside.",
+        "requirement": "Cabin must be at least 120 × 150 cm (1.80 m²).",
+        "why": "A standard wheelchair will not fit inside smaller cabins.",
+        "pdfRef": "§8.1.1"
+      },
+      {
+        "code": "ELEVATOR_DOOR_TOO_NARROW",
+        "label": "Door too narrow",
+        "short": "A wheelchair does not fit through the door.",
+        "requirement": "Clear door opening at least 90 cm wide.",
+        "why": "Narrower doors cannot admit a standard wheelchair.",
+        "pdfRef": "§8.1.1"
+      },
+      {
+        "code": "ELEVATOR_NO_AUDIO",
+        "label": "No audio announcement",
+        "short": "Floors are not announced out loud.",
+        "requirement": "Audible announcement of the arriving floor is required inside the cabin.",
+        "why": "Blind users have no way to know which floor they are on.",
+        "pdfRef": "§8.1.2"
+      },
+      {
+        "code": "ELEVATOR_NO_BRAILLE",
+        "label": "No Braille / tactile buttons",
+        "short": "Buttons are touchscreen or flat with no raised markings.",
+        "requirement": "Buttons must be tactile with Braille labels, contrasting in color with their background.",
+        "why": "Blind users cannot operate a flat touchscreen.",
+        "pdfRef": "§8.1.2"
+      },
+      {
+        "code": "ELEVATOR_DOOR_CLOSES_FAST",
+        "label": "Door closes too fast",
+        "short": "Not enough time to enter or exit.",
+        "requirement": "The door must remain open for at least 6 seconds.",
+        "why": "Wheelchair users and people with mobility aids cannot board in time.",
+        "pdfRef": "§8.1.1"
+      },
+      {
+        "code": "ELEVATOR_FLOOR_GAP",
+        "label": "Step or gap at door",
+        "short": "Cabin floor does not line up with the building floor.",
+        "requirement": "Cabin floor must align with the landing within ±1 cm; no threshold.",
+        "why": "Any step or gap can trap a wheelchair wheel or trip a user.",
+        "pdfRef": "§8.1.1"
+      }
+    ],
+
+    "INACCESSIBLE_RESTROOM": [
+      {
+        "code": "WC_DOOR_TOO_NARROW",
+        "label": "Door too narrow",
+        "short": "A wheelchair does not fit through the door.",
+        "requirement": "Clear door opening at least 90 cm; door should open outward.",
+        "why": "Wheelchairs cannot fit through a narrower door.",
+        "pdfRef": "§6.1"
+      },
+      {
+        "code": "WC_NO_TURN_SPACE",
+        "label": "No turning space inside",
+        "short": "There is no room to turn a wheelchair around.",
+        "requirement": "A clear maneuvering circle of 150 cm diameter is required inside the accessible WC.",
+        "why": "Without it, a wheelchair user cannot turn around to leave.",
+        "pdfRef": "§6.1"
+      },
+      {
+        "code": "WC_NO_GRAB_BARS",
+        "label": "No grab bars",
+        "short": "Toilet has no support bars beside it.",
+        "requirement": "Grab bars on at least one side (preferably both), positioned 25–35 cm above seat height.",
+        "why": "Transferring from a wheelchair to a toilet requires grab bars for safety.",
+        "pdfRef": "§6.2"
+      },
+      {
+        "code": "WC_DOOR_OPENS_INWARD",
+        "label": "Door opens inward",
+        "short": "Door swings into the stall and blocks access.",
+        "requirement": "Accessible WC doors must open outward or slide.",
+        "why": "If a user falls inside, an inward-opening door cannot be opened from outside to help them.",
+        "pdfRef": "§6.1"
+      },
+      {
+        "code": "WC_NO_EMERGENCY_CALL",
+        "label": "No emergency call button",
+        "short": "There is no way to call for help.",
+        "requirement": "Emergency call cord reachable both while standing (around 122 cm) and from the floor (30–50 cm).",
+        "why": "A user who has fallen must be able to call for help from the floor.",
+        "pdfRef": "§6.1"
+      }
+    ],
+
+    "NARROW_CORRIDOR": [
+      {
+        "code": "CORRIDOR_TOO_NARROW",
+        "label": "Too narrow",
+        "short": "A wheelchair cannot fit through.",
+        "requirement": "Clear corridor width must be at least 120 cm.",
+        "why": "Narrower corridors cannot accommodate a wheelchair, especially with another person passing.",
+        "pdfRef": "§7"
+      },
+      {
+        "code": "CORRIDOR_CANNOT_TURN",
+        "label": "Cannot turn corner",
+        "short": "Wheelchair gets stuck at the turn.",
+        "requirement": "At 90° turns, clear width must be at least 120 cm in both directions; 150 cm recommended.",
+        "why": "A wheelchair cannot pivot in a tighter corner.",
+        "pdfRef": "§7"
+      },
+      {
+        "code": "CORRIDOR_OBSTACLES",
+        "label": "Obstacles in corridor",
+        "short": "Cabinets, signs or fixtures stick into the corridor.",
+        "requirement": "No object may protrude more than 10 cm into the corridor between 68.5 cm and 220 cm height.",
+        "why": "Protruding objects at chest or head height are undetectable by a cane.",
+        "pdfRef": "§7"
+      },
+      {
+        "code": "CORRIDOR_LOW_HEADROOM",
+        "label": "Low headroom",
+        "short": "Ceiling, ducts or stair undersides hang low.",
+        "requirement": "Minimum clear height of 220 cm along the entire corridor.",
+        "why": "Low ceilings cause head injuries, especially for blind users.",
+        "pdfRef": "§7"
+      }
+    ],
+
+    "HEAVY_DOOR": [
+      {
+        "code": "DOOR_TOO_HEAVY",
+        "label": "Too heavy to push",
+        "short": "Door takes significant effort to open.",
+        "requirement": "Doors must open without excessive force; closers should slow the door near the end.",
+        "why": "Heavy doors are unusable from a wheelchair or with limited grip strength.",
+        "pdfRef": "§5"
+      },
+      {
+        "code": "DOOR_HAS_THRESHOLD",
+        "label": "Threshold or step at door",
+        "short": "There is a bump or step in the doorway.",
+        "requirement": "No threshold is preferred; if unavoidable, max 1.3 cm and chamfered.",
+        "why": "Even a small threshold can stop a wheelchair or trip a user.",
+        "pdfRef": "§5.3"
+      },
+      {
+        "code": "DOOR_KNOB_HANDLE",
+        "label": "Knob handle (not a lever)",
+        "short": "Door has a round knob that must be twisted.",
+        "requirement": "Lever or D-shaped pull handles only — no round knobs.",
+        "why": "Knobs cannot be operated by people with limited hand strength or no grip.",
+        "pdfRef": "§5.2"
+      },
+      {
+        "code": "DOOR_HANDLE_BAD_HEIGHT",
+        "label": "Handle too high or low",
+        "short": "Handle is out of comfortable reach.",
+        "requirement": "Handle height between 90 cm and 110 cm above the floor.",
+        "why": "Handles outside this range are out of reach from a wheelchair or for children.",
+        "pdfRef": "§5.2"
+      },
+      {
+        "code": "DOOR_TOO_NARROW",
+        "label": "Doorway too narrow",
+        "short": "A wheelchair does not fit through.",
+        "requirement": "Interior doors must have a clear opening of at least 90 cm when open.",
+        "why": "Standard wheelchairs need at least 90 cm to pass through.",
+        "pdfRef": "§5.2"
+      }
+    ],
+
+    "SLIPPERY_FLOOR": [
+      {
+        "code": "FLOOR_WET_NO_WARNING",
+        "label": "Wet floor, no warning sign",
+        "short": "Floor is wet but nothing alerts you.",
+        "requirement": "Wet surfaces must be marked with visible warning signs.",
+        "why": "Unmarked wet floors cause falls, especially for elderly users.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "FLOOR_GLOSSY",
+        "label": "Polished or glossy",
+        "short": "Surface looks shiny and feels slick.",
+        "requirement": "Floors must be non-slip per TS 13882 (R10 minimum for interior public areas).",
+        "why": "Highly polished floors are dangerous for anyone with reduced balance.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "FLOOR_NO_ENTRANCE_MAT",
+        "label": "No mat at entrance",
+        "short": "Wet shoes track water onto the floor.",
+        "requirement": "Entrance areas should have a non-slip mat in wet weather.",
+        "why": "Wet shoes turn interior floors into slip hazards.",
+        "pdfRef": "§1.7"
+      },
+      {
+        "code": "FLOOR_RECENTLY_MOPPED",
+        "label": "Recently mopped, no sign",
+        "short": "Floor is wet from cleaning with nothing warning you.",
+        "requirement": "Cleaning in progress requires visible wet-floor signs.",
+        "why": "Most cleaning-related falls happen on freshly mopped floors with no warning.",
+        "pdfRef": "§1.7"
+      }
+    ]
+  }
+}

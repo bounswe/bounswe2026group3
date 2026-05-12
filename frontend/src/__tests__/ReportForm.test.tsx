@@ -11,6 +11,11 @@ import ReportForm from '../components/reports/ReportForm';
 
 // ── Mocks ──────────────────────────────────────────────────────────
 
+jest.mock('../components/reports/LocationPicker', () => {
+  const { View } = require('react-native');
+  return { __esModule: true, default: () => <View testID="location-picker" /> };
+});
+
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   getCurrentPositionAsync: jest.fn().mockResolvedValue({
@@ -116,5 +121,22 @@ describe('ReportForm', () => {
     // We verify submitReport is not called if pressed while loading
     fireEvent.press(btn);
     expect(getSubmitReport()).not.toHaveBeenCalled();
+  });
+
+  it('does NOT show accessibility chip section before a category is selected', async () => {
+    const { queryByText } = await renderAndWaitReady();
+    expect(queryByText(/What.s wrong here\?/i)).toBeNull();
+  });
+
+  it('shows accessibility chip section after selecting a chip-supported category', async () => {
+    const { getByText, findByText } = await renderAndWaitReady();
+    fireEvent.press(getByText('Broken Ramp'));
+    await expect(findByText(/What.s wrong here\?/i)).resolves.toBeTruthy();
+  });
+
+  it('does NOT show accessibility chip section when OTHER category is selected', async () => {
+    const { getByText, queryByText } = await renderAndWaitReady();
+    fireEvent.press(getByText('Other'));
+    expect(queryByText(/What.s wrong here\?/i)).toBeNull();
   });
 });

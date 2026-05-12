@@ -9,6 +9,7 @@ import { searchLocations, searchNominatim, reverseGeocode, type SearchResult } f
 import { parseDRFError } from '../../services/auth';
 import LocationPicker from './LocationPicker';
 import type { ObstacleCategory, ReportContext, SubmitReportResponse } from '../../types/report';
+import { getStandardsForCategory } from '../../constants/accessibilityStandards';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -38,6 +39,7 @@ export default function ReportForm({ onSuccess }: Props) {
   const loc = useLocation();
   const [context, setContext]       = useState<ReportContext>('OUTDOOR');
   const [category, setCategory]     = useState<ObstacleCategory | null>(null);
+  const [violations, setViolations] = useState<string[]>([]);
   const [photos, setPhotos]         = useState<PhotoEntry[]>([]);
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -110,6 +112,17 @@ export default function ReportForm({ onSuccess }: Props) {
   function addPhoto(p: PhotoEntry)   { setPhotos(prev => [...prev, p]); setPhotoError(''); }
   function removePhoto(i: number)    { setPhotos(prev => prev.filter((_, idx) => idx !== i)); }
   function toggleCategory(v: ObstacleCategory) { setCategory(prev => prev === v ? null : v); }
+  function toggleViolation(code: string) {
+    setViolations(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+  }
+
+  // Clear selected accessibility issues whenever the category changes — the
+  // chip list is category-scoped and stale codes would fail backend validation.
+  useEffect(() => { setViolations([]); }, [category]);
+
+  const categoryStandards = getStandardsForCategory(category);
 
   // Debounced search
   const handleSearchInput = useCallback((text: string) => {
@@ -205,6 +218,7 @@ export default function ReportForm({ onSuccess }: Props) {
         category,
         description: description.trim(),
         photos: photos.map(p => p.b64),
+        violations,
         ...(context === 'INDOOR' && {
           buildingName: buildingName.trim(),
           floor: floor.trim() || undefined,
@@ -456,6 +470,40 @@ export default function ReportForm({ onSuccess }: Props) {
           </View>
         </View>
 
+        {/* ── Accessibility issues ── */}
+        {categoryStandards.length > 0 && (
+          <View style={s.card}>
+            <View style={s.cardTitleRow}>
+              <Ionicons name="alert-circle-outline" size={18} color={COLORS.green600} />
+              <Text style={s.cardTitle}>
+                What's wrong here? <Text style={s.optional}>(optional)</Text>
+              </Text>
+            </View>
+            <View style={s.violationsWrap}>
+              {categoryStandards.map(std => {
+                const active = violations.includes(std.code);
+                return (
+                  <TouchableOpacity
+                    key={std.code}
+                    style={[s.violationChip, active && s.violationChipActive]}
+                    onPress={() => toggleViolation(std.code)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={active ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={14}
+                      color={active ? COLORS.green700 : COLORS.gray400}
+                    />
+                    <Text style={[s.violationChipLabel, active && s.violationChipLabelActive]}>
+                      {std.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* ── Photo ── */}
         <View style={s.card}>
           <View style={s.cardTitleRow}>
@@ -542,6 +590,12 @@ const s = StyleSheet.create({
   tileActive:      { borderColor: COLORS.green600, backgroundColor: COLORS.green50 },
   tileLabel:       { fontSize: 12, fontWeight: '600', color: COLORS.gray500, textAlign: 'center' as const },
   tileLabelActive: { color: COLORS.green700 },
+  // Accessibility-issue chips — multi-select toggles, same color tokens as tileActive
+  violationsWrap:        { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8 },
+  violationChip:         { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.gray200, backgroundColor: COLORS.white },
+  violationChipActive:   { borderColor: COLORS.green600, backgroundColor: COLORS.green50 },
+  violationChipLabel:    { fontSize: 12, fontWeight: '600', color: COLORS.gray600 },
+  violationChipLabelActive: { color: COLORS.green700 },
   // Description
   textarea:        { borderWidth: 1.5, borderColor: COLORS.gray300, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: COLORS.gray900, minHeight: 96 },
   // Error banner

@@ -66,6 +66,7 @@ class ObstacleDetailSerializer(serializers.Serializer):
     userUpvoted = serializers.SerializerMethodField()
     userFlagged = serializers.SerializerMethodField()
     userConfirmed = serializers.SerializerMethodField()
+    violations = serializers.JSONField(default=list)
     photos = PhotoSerializer(many=True)
     statusHistory = StatusHistorySerializer(many=True, source="status_changes")
     createdAt = serializers.DateTimeField(source="created_at")
