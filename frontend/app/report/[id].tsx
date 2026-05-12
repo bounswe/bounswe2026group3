@@ -214,7 +214,7 @@ export default function ReportDetailScreen() {
 
   return (
     <ScrollView style={s.page} contentContainerStyle={s.content}>
-      <TouchableOpacity style={s.back} onPress={() => router.canGoBack() ? router.back() : router.replace('/tabs/map')}>
+      <TouchableOpacity style={s.back} onPress={() => router.canGoBack() ? router.back() : router.replace('/tabs')}>
         <Ionicons name="arrow-back" size={18} color={COLORS.gray600} />
         <Text style={s.backText}>Map</Text>
       </TouchableOpacity>
