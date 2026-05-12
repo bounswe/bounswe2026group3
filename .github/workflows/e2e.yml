@@ -1,0 +1,71 @@
+name: E2E Smoke Tests
+
+# Runs the Playwright smoke suite (issue #178) against the deployed environment.
+#
+# Required repository configuration (Settings → Secrets and variables → Actions):
+#   Variables:
+#     E2E_BASE_URL   — URL of the deployed web app   (e.g. https://accessmap.vercel.app)
+#     E2E_API_URL    — URL of the deployed backend    (e.g. https://api.accessmap.example.com)
+#
+# Until both are set the test step is skipped (the job still succeeds) so PRs
+# aren't blocked by an unconfigured pipeline. To make a failure block merges to
+# main once configured, add this job ("E2E Smoke") as a required status check
+# under Settings → Branches → Branch protection rules.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check configuration
+        id: cfg
+        working-directory: .
+        run: |
+          if [ -n "${{ vars.E2E_BASE_URL }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=E2E skipped::Set repo variables E2E_BASE_URL and E2E_API_URL to run the smoke suite against the deployed environment."
+          fi
+
+      - name: Set up Node.js
+        if: steps.cfg.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        if: steps.cfg.outputs.enabled == 'true'
+        run: npm install --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        if: steps.cfg.outputs.enabled == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        if: steps.cfg.outputs.enabled == 'true'
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ vars.E2E_BASE_URL }}
+          PLAYWRIGHT_API_URL: ${{ vars.E2E_API_URL }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ steps.cfg.outputs.enabled == 'true' && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
