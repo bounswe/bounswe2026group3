@@ -169,8 +169,17 @@ function FitRoute({ route }: { route: RouteResult | null }) {
 function ObstaclePopup({
   obs, detail, loading, onViewDetails,
 }: { obs: Obstacle; detail: ObstacleDetail | undefined; loading: boolean; onViewDetails: () => void }) {
+  const map = useMap();
   const color = CATEGORY_COLOR[obs.category] ?? COLORS.gray500;
   const statusColor = STATUS_COLOR[obs.status] ?? COLORS.gray400;
+
+  // Close the leaflet popup before navigating to detail. Leaves a clean
+  // state on the underlying map so the next click after returning gets a
+  // freshly-rendered popup instead of a stale one.
+  function handleViewDetails() {
+    map.closePopup();
+    onViewDetails();
+  }
 
   return (
     <div style={{ minWidth: 200, maxWidth: 240, fontFamily: 'system-ui, sans-serif' }}>
@@ -200,7 +209,7 @@ function ObstaclePopup({
         </div>
       )}
       <button
-        onClick={onViewDetails}
+        onClick={handleViewDetails}
         style={{ marginTop: 8, width: '100%', padding: '5px 0', background: 'none', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 12, color: '#374151' }}
       >
         View details →
@@ -385,10 +394,11 @@ export default function MapView() {
   }, []);
 
   const handlePinClick = useCallback(async (id: string) => {
-    setDetailMap((prev) => {
-      if (prev[id]) return prev;
-      return { ...prev, [id]: 'loading' };
-    });
+    // Always re-fetch on click — the cached entry can be stale after the
+    // user round-tripped through the detail screen (upvotes, status, etc.)
+    // and the state transition forces React to re-render the popup with
+    // fresh content instead of leaving a stale leaflet portal in place.
+    setDetailMap((prev) => ({ ...prev, [id]: 'loading' }));
     const detail = await fetchObstacleDetail(id);
     setDetailMap((prev) => {
       if (!detail) { const next = { ...prev }; delete next[id]; return next; }
