@@ -765,6 +765,28 @@ export default function MapView() {
                 </TouchableOpacity>
               </View>
 
+              {/* Collapsed route summary — shown when a route is calculated */}
+              {route ? (
+                <TouchableOpacity
+                  style={s.collapsedRouteBar}
+                  onPress={() => setRoute(null)}
+                  activeOpacity={0.8}
+                >
+                  <View style={s.collapsedRouteInner}>
+                    <View style={[s.dot, s.dotOrigin]} />
+                    <Text style={s.collapsedRouteText} numberOfLines={1}>
+                      {originQ.split(',')[0].trim()}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={12} color={COLORS.gray400} />
+                    <View style={[s.dot, s.dotDest]} />
+                    <Text style={s.collapsedRouteText} numberOfLines={1}>
+                      {destQ.split(',')[0].trim()}
+                    </Text>
+                  </View>
+                  <Ionicons name="create-outline" size={18} color={COLORS.green700} />
+                </TouchableOpacity>
+              ) : (
+              <>
               {/* Saved places quick-select for origin */}
               {originFocused && savedPlaces.length > 0 && originQ.length === 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.savedChips} keyboardShouldPersistTaps="handled">
@@ -912,6 +934,8 @@ export default function MapView() {
                   <Ionicons name="alert-circle-outline" size={14} color={COLORS.red500} />
                   <Text style={s.errorText}>{routeError}</Text>
                 </View>
+              )}
+              </>
               )}
 
               {route && (
@@ -1206,6 +1230,32 @@ const s = StyleSheet.create({
   presetChipActive: { borderColor: COLORS.green600, backgroundColor: COLORS.green50 },
   presetChipText: { fontSize: 14, fontWeight: '600', color: COLORS.gray600 },
   presetChipTextActive: { color: COLORS.green700 },
+
+  // ── Collapsed route bar (shown in place of inputs when route is set) ─────
+  collapsedRouteBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: COLORS.gray50,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    marginBottom: 4,
+  },
+  collapsedRouteInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginRight: 10,
+  },
+  collapsedRouteText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.gray700,
+    fontWeight: '500',
+  },
 
   // ── Route summary ────────────────────────────────────────────────────────
   summaryCard: {
