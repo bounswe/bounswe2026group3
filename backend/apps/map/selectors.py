@@ -11,7 +11,6 @@ def get_obstacles_in_bbox(sw_lat, sw_lng, ne_lat, ne_lng, include_passive=False,
 
     qs = Report.objects.filter(
         status__in=allowed_statuses,
-        is_indoor=False,
         latitude__gte=sw_lat,
         latitude__lte=ne_lat,
         longitude__gte=sw_lng,
